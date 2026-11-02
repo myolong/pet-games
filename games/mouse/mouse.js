@@ -17,6 +17,7 @@
   const field = $('field');
 
   let best = loadBest();
+  const ranking = Ranking.create('mouse', $('ranking'));
   let game = null;
 
   const holes = [];
@@ -182,6 +183,7 @@
       : '쥐들이 너무 빠르다옹…';
     $('result-time').textContent = seconds + '초 버텼어요';
     $('result-best').textContent = '최고 기록 ' + best + '점';
+    ranking.show(score);
     $('result').returnValue = '';
     $('result').showModal();
   }
