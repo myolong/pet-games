@@ -19,6 +19,7 @@
   let width = 0;
   let height = 0;
   let best = loadBest();
+  const ranking = Ranking.create('tower', $('ranking'));
   let game = null;
 
   function loadBest() {
@@ -246,6 +247,7 @@
       : '조금만 더 높이 가고 싶다옹…';
     $('result-time').textContent = game.level + '층까지 올라갔어요';
     $('result-best').textContent = '최고 기록 ' + best + '점';
+    ranking.show(score);
     $('result').returnValue = '';
     $('result').showModal();
   }

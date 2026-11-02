@@ -27,6 +27,7 @@
   let width = 0;
   let height = 0;
   let best = loadBest();
+  const ranking = Ranking.create('snack', $('ranking'));
   let game = null;
 
   // 이모지에 썩은 고기가 없어서, 고기를 초록빛으로 물들이고 파리를 붙여 만든다.
@@ -224,6 +225,7 @@
       : '배탈 났다옹…';
     $('result-time').textContent = seconds + '초 버텼어요';
     $('result-best').textContent = '최고 기록 ' + best + '점';
+    ranking.show(score);
     $('result').returnValue = '';
     $('result').showModal();
   }
