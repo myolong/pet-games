@@ -122,7 +122,8 @@
           list.append(li);
         });
       } catch (e) {
-        if (thisRound === round) list.replaceChildren(el('li', 'ranking-empty', e.message));
+        // 순위 서버가 안 될 때는 오류 문구 대신 순위표를 통째로 숨긴다.
+        if (thisRound === round) section.hidden = true;
       }
     }
 
@@ -153,6 +154,7 @@
       show(newScore) {
         round++;
         score = newScore;
+        section.hidden = false;
         myId = null;
         input.value = loadName();
         button.disabled = false;
