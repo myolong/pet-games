@@ -1,5 +1,5 @@
 // 게임 결과 창에 전체 순위(상위 10명)를 보여 주고, 닉네임으로 점수를 올린다.
-// Firebase SDK 없이 Firestore REST API만 쓴다. 점수 범위 검사는 Firestore 보안 규칙이 맡는다.
+// Supabase REST API(표 scores)만 쓴다. 점수 범위·닉네임 길이 검사는 서버의 표 제약 조건이 맡는다.
 (function () {
   const NAME_KEY = 'nyang-nickname';
   const TOP_N = 10;
@@ -13,14 +13,11 @@
     'fuck', 'shit', 'bitch', 'sex', 'porn', 'dick', 'pussy', 'admin',
   ];
 
-  const config = window.FIREBASE_CONFIG || {};
-  const enabled = Boolean(config.apiKey && config.projectId);
-  const base = 'https://firestore.googleapis.com/v1/projects/' + config.projectId +
-    '/databases/(default)/documents';
-
-  function collection(game) {
-    return 'scores-' + game;
-  }
+  // 순위 서버(Supabase) 주소와 공개 키. assets/ranking-config.js에서 넣는다.
+  const config = window.RANKING_CONFIG || {};
+  const base = (config.url || '').replace(/\/+$/, '') + '/rest/v1/scores';
+  const enabled = Boolean(config.url && config.key);
+  const headers = { apikey: config.key };
 
   function cleanName(name) {
     return name.replace(/\s+/g, ' ').trim().slice(0, MAX_NAME);
@@ -32,41 +29,22 @@
   }
 
   async function fetchTop(game) {
-    const res = await fetch(base + ':runQuery?key=' + config.apiKey, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        structuredQuery: {
-          from: [{ collectionId: collection(game) }],
-          orderBy: [{ field: { fieldPath: 'score' }, direction: 'DESCENDING' }],
-          limit: TOP_N,
-        },
-      }),
-    });
+    const q = 'select=id,name,score&game=eq.' + game + '&order=score.desc,created_at.asc&limit=' + TOP_N;
+    const res = await fetch(base + '?' + q, { headers });
     if (!res.ok) throw new Error('순위를 불러오지 못했어요');
     const rows = await res.json();
-    return rows.filter((r) => r.document).map((r) => ({
-      id: r.document.name.split('/').pop(),
-      name: r.document.fields.name.stringValue,
-      score: Number(r.document.fields.score.integerValue),
-    }));
+    return rows.map((r) => ({ id: r.id, name: r.name, score: Number(r.score) }));
   }
 
   async function submit(game, name, score) {
-    const res = await fetch(base + '/' + collection(game) + '?key=' + config.apiKey, {
+    const res = await fetch(base + '?select=id', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fields: {
-          name: { stringValue: name },
-          score: { integerValue: String(score) },
-          at: { timestampValue: new Date().toISOString() },
-        },
-      }),
+      headers: Object.assign({ 'Content-Type': 'application/json', Prefer: 'return=representation' }, headers),
+      body: JSON.stringify({ game: game, name: name, score: score }),
     });
     if (!res.ok) throw new Error('기록을 올리지 못했어요');
-    const doc = await res.json();
-    return doc.name.split('/').pop();
+    const rows = await res.json();
+    return rows[0] && rows[0].id;
   }
 
   function loadName() {
