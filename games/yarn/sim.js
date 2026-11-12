@@ -33,7 +33,8 @@ function angleTo(from, to) {
 }
 
 export function radius(s) { return 12 + Math.sqrt(Math.max(0, s)) * 2.2; }
-export function speed(s) { return BASE_SPEED * Math.pow(START_S / Math.max(START_S, s), 0.15); }
+// 크기와 상관없이 모두 같은 속도 (밀기를 쓸 때만 빨라진다)
+export function speed() { return BASE_SPEED; }
 export function canEat(big, small) { return big.s >= small.s * EAT_RATIO; }
 // 화면에 보여 줄 크기 글자: 38cm, 1.2m
 export function fmtSize(s) { return s < 100 ? Math.round(s) + 'cm' : (Math.floor(s / 10) / 10).toFixed(1) + 'm'; }
@@ -218,7 +219,7 @@ function moveBall(w, b, dt) {
   // 아주 큰 뭉치는 조금씩 풀린다 (혼자 너무 커지지 않게)
   if (b.s > 300) b.s -= b.s * 0.003 * dt;
   if (b.bot && b.s > b.cap) b.s -= (b.s - b.cap) * 0.3 * dt;
-  const sp = speed(b.s) * (b.bot ? 0.94 : 1) * (boosting ? BOOST : 1);
+  const sp = speed(b.s) * (boosting ? BOOST : 1);
   const turn = TURN * dt * clamp(speed(b.s) / BASE_SPEED + 0.25, 0.6, 1);
   b.a += clamp(angleTo(b.a, b.ta), -turn, turn);
   const r = radius(b.s);
@@ -327,7 +328,7 @@ export function step(w, dt) {
   }
   let fresh = 0;
   for (const f of w.bits) if (f.drop === undefined) fresh++;
-  if (fresh < BIT_COUNT && Math.random() < dt * 40) { spawnBit(w); if (Math.random() < 0.5) spawnBit(w); }
+  if (fresh < BIT_COUNT && Math.random() < dt * 60) { spawnBit(w); if (Math.random() < 0.5) spawnBit(w); }
 }
 
 export function ranked(w) {
