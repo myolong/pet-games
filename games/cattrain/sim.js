@@ -1,27 +1,27 @@
 // 냥이 꼬리기차 게임 규칙. 화면(혼자 하기)과 서버(같이 하기)가 같은 파일을 쓴다.
 // 그림·화면 코드는 넣지 않는다.
 
-export const WORLD = 2400;          // 놀이터 한 변 길이
+export const WORLD = 4160;          // 놀이터 한 변 길이 (넓이는 처음 2400의 3배)
 export const STEP = 4;              // 꼬리 경로를 저장하는 간격
 export const SPEED = 150;           // 기본 속도(초당)
 export const DASH = 1.8;            // 달리기 배율
 export const TURN = 4.2;            // 초당 회전 각도(라디안)
 export const GAUGE_MAX = 5;         // 간식 몇 개에 아기냥 한 마리
 export const START_LEN = 3;
-export const FISH_COUNT = 450;
-export const WILD_COUNT = 60;       // 놀이터를 떠도는 길 잃은 아기냥 수
-export const POISON_COUNT = 45;     // 먹으면 아기냥이 도망가는 독버섯 수
+export const FISH_COUNT = 1350;
+export const WILD_COUNT = 180;      // 놀이터를 떠도는 길 잃은 아기냥 수
+export const POISON_COUNT = 135;    // 먹으면 아기냥이 도망가는 독버섯 수
 export const POISON_LOSS = 2;       // 독버섯 하나에 도망가는 아기냥 수
-export const ONION_COUNT = 8;       // 먹으면 아기냥 절반이 도망가는 양파 수 (드물다)
+export const ONION_COUNT = 24;      // 먹으면 아기냥 절반이 도망가는 양파 수 (드물다)
 export const BOT_MAX_LEN = 30;
-export const TRAIN_TARGET = 12;     // 사람 + 컴퓨터 냥이를 합쳐 이 정도로 맞춘다
+export const TRAIN_TARGET = 20;     // 사람 + 컴퓨터 냥이를 합쳐 이 정도로 맞춘다
 export const MIN_BOTS = 3;
 
 export const FUR_KEYS = ['orange', 'gray', 'white', 'black', 'calico', 'cream'];
 export const PICK_FURS = ['orange', 'gray', 'white', 'black', 'calico'];
 export const SCARVES = ['#ff5a5a', '#5a8dee', '#9b6be0', '#2fae8f', '#e05a9b', '#e0b33a', '#6c7a89', '#3aa0c8'];
 export const FISH_COLORS = ['#7ec8e3', '#f7b2c4', '#a8e6a1', '#b9a7f5', '#ffcf3f'];
-export const BOT_NAMES = ['까망이', '회색번개', '콩떡', '삼색이', '치즈볼', '두부', '호떡', '모찌', '깜냥', '보리', '라떼', '흰둥이', '꼬미', '찹쌀', '감자', '누룽지'];
+export const BOT_NAMES = ['까망이', '회색번개', '콩떡', '삼색이', '치즈볼', '두부', '호떡', '모찌', '깜냥', '보리', '라떼', '흰둥이', '꼬미', '찹쌀', '감자', '누룽지', '인절미', '팥떡', '고등어', '버터', '쿠키', '밤톨', '단추', '구름'];
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const randInt = (n) => Math.floor(Math.random() * n);
@@ -457,19 +457,19 @@ export function step(w, dt) {
     k.x = clamp(k.x + k.vx * dt, 20, WORLD - 20);
     k.y = clamp(k.y + k.vy * dt, 20, WORLD - 20);
   }
-  if (kittens.length > 260) {
+  if (kittens.length > 600) {
     const i = kittens.findIndex((k) => !k.wild);
     if (i >= 0) kittens.splice(i, 1);
   }
   let wild = 0;
   for (const k of kittens) if (k.wild) wild++;
-  if (wild < WILD_COUNT && Math.random() < dt * 3) spawnWild(w);
+  if (wild < WILD_COUNT && Math.random() < dt * 9) spawnWild(w);
   rollOnions(w, dt);
   let poison = 0, onion = 0;
   for (const f of w.fish) { if (f.v === -1) poison++; else if (f.v === -2) onion++; }
   while (w.fish.length - poison - onion < FISH_COUNT) spawnFish(w);
-  if (poison < POISON_COUNT && Math.random() < dt * 0.5) spawnPoison(w);
-  if (onion < ONION_COUNT && Math.random() < dt * 0.1) spawnPoison(w, true);
+  if (poison < POISON_COUNT && Math.random() < dt * 1.5) spawnPoison(w);
+  if (onion < ONION_COUNT && Math.random() < dt * 0.3) spawnPoison(w, true);
   for (const t of w.trains) if (t.alive && t.kids.length > t.maxLen) t.maxLen = t.kids.length;
 }
 

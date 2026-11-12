@@ -2,7 +2,7 @@
 // 사람이 있는 동안 1초에 20번 게임을 진행하고, 각 사람에게 그 사람 화면 근처의 모습만 보낸다.
 import {
   createWorld, step, addPlayer, removeTrain, ranked,
-  FUR_KEYS, PICK_FURS, SCARVES,
+  FUR_KEYS, PICK_FURS, SCARVES, WORLD,
 } from '../../games/cattrain/sim.js';
 
 const TICK_MS = 50;
@@ -204,7 +204,7 @@ export class Room {
     for (const c of this.conns) {
       if (!c.joined) continue;
       const me = c.train;
-      const cx = me ? me.x : c.cam ? c.cam.x : 1200, cy = me ? me.y : c.cam ? c.cam.y : 1200;
+      const cx = me ? me.x : c.cam ? c.cam.x : WORLD / 2, cy = me ? me.y : c.cam ? c.cam.y : WORLD / 2;
       const L = cx - c.view.hw, R = cx + c.view.hw, T = cy - c.view.hh, B = cy + c.view.hh;
       const tr = [];
       for (const t of w.trains) {
