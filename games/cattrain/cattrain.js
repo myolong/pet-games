@@ -207,7 +207,7 @@ function connect(onReady, onFail) {
   let ws;
   try { ws = new WebSocket(SERVER.replace(/^http/, 'ws') + '/ws?room=' + net.room); } catch (e) { onFail(); return; }
   net.ws = ws;
-  const timer = setTimeout(() => { if (!settled) { settled = true; try { ws.close(); } catch (e) {} onFail(); } }, 5000);
+  const timer = setTimeout(() => { if (!settled) { settled = true; try { ws.close(); } catch (e) {} onFail(); } }, 10000);
   ws.onopen = () => { if (settled) return; settled = true; clearTimeout(timer); onReady(); };
   ws.onerror = () => { if (!settled) { settled = true; clearTimeout(timer); onFail(); } };
   ws.onclose = () => {

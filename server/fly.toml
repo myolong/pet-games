@@ -1,0 +1,20 @@
+# 냥이 꼬리기차 같이 하기 서버 (Fly.io 도쿄). 게임 상태를 서버 메모리에 두므로 서버는 한 대만 쓴다.
+# 요금을 아끼려고 접속한 사람이 없으면 서버가 꺼지고, 누가 들어오면 몇 초 만에 다시 켜진다.
+app = "nyangnyang-cattrain"
+primary_region = "nrt"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "connections"
+    soft_limit = 200
+    hard_limit = 250
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
