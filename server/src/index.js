@@ -7,7 +7,7 @@ import {
 } from '../../games/cattrain/sim.js';
 
 const TICK_MS = 50;
-const SNAP_EVERY = 2;          // 2틱마다 = 1초에 10번
+const SNAP_EVERY = 1;          // 매 틱 = 1초에 20번
 const MAX_PLAYERS = 24;        // 방 하나에 들어올 수 있는 사람 수
 const MAX_ROOMS = 5;
 const IDLE_STOP_MS = 60000;    // 아무도 없으면 1분 뒤 쉰다
@@ -130,6 +130,9 @@ export class World {
       if (!c.train || typeof m.a !== 'number' || !isFinite(m.a)) return;
       c.train.input.a = m.a;
       c.train.input.dash = !!m.d;
+    } else if (m.t === 'ping') {
+      // 화면이 서버까지 걸리는 시간을 재도록 그대로 돌려준다.
+      this.send(c, { t: 'pong', c: m.c });
     } else if (m.t === 'view') {
       const hw = Number(m.hw), hh = Number(m.hh);
       if (isFinite(hw) && isFinite(hh)) c.view = { hw: Math.min(1100, Math.max(200, hw)), hh: Math.min(1100, Math.max(200, hh)) };
@@ -175,7 +178,7 @@ export class World {
     const lb = order.slice(0, 5).map((t) => [t.name, t.bot ? 1 : 0, t.kids.length, t.id]);
     let humansNow = 0;
     for (const t of w.trains) if (t.isPlayer) humansNow++;
-    const withMap = this.tickNo % (SNAP_EVERY * 5) === 0;
+    const withMap = this.tickNo % 10 === 0;
     let mm = null;
     if (withMap) {
       mm = [];

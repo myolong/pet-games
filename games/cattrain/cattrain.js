@@ -13,7 +13,7 @@ const BEST_KEY = 'nyang-cattrain-best';
 const FUR_KEY = 'nyang-cattrain-fur';
 const NAME_KEY = 'nyang-nickname';
 const SERVER = String(window.CATTRAIN_SERVER || '').replace(/\/+$/, '');
-const INTERP_MS = 110;      // 서버 모습을 이만큼 늦게 보여 주며 사이를 부드럽게 잇는다
+let interpMs = 90;          // 다른 기차는 서버 모습을 이만큼 늦게 보여 주며 사이를 부드럽게 잇는다 (인터넷 상태에 맞춰 바뀜)
 
 const FURS = {
   orange: ['#f4a24c', '#d97a22'],
@@ -197,7 +197,8 @@ function localJoin(cont) {
 }
 
 // ───── 같이 하기: 서버 연결 ─────
-const net = { ws: null, room: 1, snaps: [], meId: 0, lastA: 99, lastDash: false, lastSend: 0, lastLen: 0, hc: 0, mm: [], gotFirst: false };
+const net = { ws: null, room: 1, snaps: [], meId: 0, lastA: 99, lastDash: false, lastSend: 0, lastLen: 0, hc: 0, mm: [], gotFirst: false, rtt: 150, gapAvg: 50, jitter: 10, lastPing: 0 };
+let pred = null;    // 내 기차는 내 폰에서 먼저 움직이고, 서버 위치에 조금씩 맞춘다
 
 function connect(onReady, onFail) {
   let settled = false;
@@ -243,8 +244,19 @@ function onServer(m) {
     net.gotFirst = false;
     net.lastLen = 0;
     net.lastA = 99;
+    pred = null;
     hintUntil = clock + 4;
+  } else if (m.t === 'pong') {
+    const rtt = performance.now() - m.c;
+    if (rtt >= 0 && rtt < 5000) net.rtt += (rtt - net.rtt) * 0.3;
   } else if (m.t === 's') {
+    const arrive = performance.now();
+    if (net.snaps.length) {
+      const gap = arrive - net.snaps[net.snaps.length - 1].at;
+      net.gapAvg += (gap - net.gapAvg) * 0.1;
+      net.jitter += (Math.abs(gap - net.gapAvg) - net.jitter) * 0.1;
+      interpMs = clamp(net.gapAvg + net.jitter * 3 + 10, 60, 250);
+    }
     net.snaps.push({ at: performance.now(), d: m, map: new Map(m.tr.map((r) => [r[0], r])) });
     if (net.snaps.length > 6) net.snaps.shift();
     if (m.mm) net.mm = m.mm;
@@ -264,6 +276,7 @@ function onServer(m) {
       run.max = Math.max(run.max, m.my[1]);
     }
   } else if (m.t === 'dead') {
+    pred = null;
     onDead({ by: m.by, bot: m.bot, max: m.max, rank: m.rank, count: m.count, lived: m.lived, canCont: m.canCont, x: m.x, y: m.y, a: m.a / 100, fur: m.fur });
   }
 }
@@ -277,13 +290,19 @@ function joinOnline(cont) {
 function onlineScene() {
   const snaps = net.snaps;
   if (!snaps.length) return null;
-  const t = performance.now() - INTERP_MS;
+  const t = performance.now() - interpMs;
   let a = snaps[0], b = snaps[0];
-  for (let i = snaps.length - 1; i >= 0; i--) {
-    if (snaps[i].at <= t) { a = snaps[i]; b = snaps[Math.min(snaps.length - 1, i + 1)]; break; }
+  const n = snaps.length;
+  if (n >= 2 && t >= snaps[n - 1].at) {
+    // 다음 정보가 늦으면 마지막 움직임대로 조금(최대 0.15초) 더 이어 간다.
+    a = snaps[n - 2]; b = snaps[n - 1];
+  } else {
+    for (let i = n - 1; i >= 0; i--) {
+      if (snaps[i].at <= t) { a = snaps[i]; b = snaps[Math.min(n - 1, i + 1)]; break; }
+    }
   }
   const span = b.at - a.at;
-  const k = span > 0 ? clamp((t - a.at) / span, 0, 1) : 1;
+  const k = span > 0 ? clamp((t - a.at) / span, 0, 1 + 150 / span) : 1;
   const trains = [];
   for (const r of b.d.tr) {
     const p = a.map.get(r[0]);
@@ -310,6 +329,10 @@ function onlineScene() {
   const kittens = [];
   for (let i = 0; i < d.k.length; i += 5) kittens.push({ x: d.k[i], y: d.k[i + 1], fur: FUR_KEYS[d.k[i + 2]], wild: d.k[i + 3] === 1, old: d.k[i + 3] === 2, a: d.k[i + 4] / 100, seed: d.k[i] * 0.37 + d.k[i + 1] * 0.11 });
   const me = d.me ? trains.find((x) => x.id === d.me) || null : null;
+  if (me && pred && pred.id === me.id) {
+    me.x = pred.x; me.y = pred.y; me.a = pred.a;
+    me.segs = pred.segs.map((s) => ({ x: s.x, y: s.y, a: s.a }));
+  }
   const mm = [];
   for (let i = 0; i < net.mm.length; i += 4) mm.push({ x: net.mm[i], y: net.mm[i + 1], len: net.mm[i + 2], id: net.mm[i + 3] });
   return {
@@ -334,6 +357,68 @@ function rowToTrain(r) {
 function segAngles(t) {
   let px = t.x, py = t.y;
   for (const s of t.segs) { s.a = Math.atan2(py - s.y, px - s.x); px = s.x; py = s.y; }
+}
+
+function kidsOf(str) {
+  const kids = [];
+  for (const ch of str) kids.push(FUR_KEYS[+ch] || 'orange');
+  return kids;
+}
+
+function makePred(row) {
+  const p = { id: row[0], x: row[1], y: row[2], a: row[3] / 100, kids: kidsOf(row[8]), trail: [], segs: [], box: {} };
+  // 서버가 준 아기냥 자리를 꼬리 끝부터 머리까지 STEP 간격 경로로 펼친다.
+  const pts = [];
+  const sg = row[9];
+  for (let i = sg.length - 2; i >= 0; i -= 2) pts.push({ x: sg[i], y: sg[i + 1] });
+  pts.push({ x: p.x, y: p.y });
+  if (pts.length === 1) pts.unshift({ x: p.x - Math.cos(p.a) * S.STEP, y: p.y - Math.sin(p.a) * S.STEP });
+  p.trail.push(pts[0]);
+  for (let i = 1; i < pts.length; i++) {
+    const q0 = pts[i - 1], q1 = pts[i];
+    const l = Math.hypot(q1.x - q0.x, q1.y - q0.y);
+    const steps = Math.max(1, Math.round(l / S.STEP));
+    for (let j = 1; j <= steps; j++) p.trail.push({ x: q0.x + (q1.x - q0.x) * j / steps, y: q0.y + (q1.y - q0.y) * j / steps });
+  }
+  S.ensureTrail(p);
+  S.computeSegs(p);
+  return p;
+}
+
+// 내 기차를 서버 응답을 기다리지 않고 바로 움직인다. 서버 위치와 벌어지면 조금씩 당겨 맞춘다.
+function predStep(dt) {
+  const last = net.snaps[net.snaps.length - 1];
+  if (!last || !last.d.me || state !== 'play') { pred = null; return; }
+  const row = last.map.get(last.d.me);
+  if (!row) return;
+  if (!pred || pred.id !== row[0]) { pred = makePred(row); return; }
+  pred.kids = kidsOf(row[8]);
+  S.ensureTrail(pred);
+  const my = last.d.my;
+  const dashing = input.dash && ((my && my[2] > 0) || pred.kids.length > START_LEN);
+  const turn = S.TURN * dt * (dashing ? 0.8 : 1);
+  pred.a += clamp(angleTo(pred.a, input.a), -turn, turn);
+  const sp = S.SPEED * (dashing ? S.DASH : 1);
+  pred.x += Math.cos(pred.a) * sp * dt;
+  pred.y += Math.sin(pred.a) * sp * dt;
+  // 서버가 본 내 머리 위치를 지금 시각까지 앞으로 밀어 본 곳
+  const age = (performance.now() - last.at + net.rtt / 2) / 1000;
+  const sa = row[3] / 100, ssp = S.SPEED * (row[6] & 2 ? S.DASH : 1);
+  const tx = row[1] + Math.cos(sa) * ssp * age, ty = row[2] + Math.sin(sa) * ssp * age;
+  const ex = tx - pred.x, ey = ty - pred.y;
+  if (ex * ex + ey * ey > 140 * 140) { pred = makePred(row); return; }
+  const f = Math.min(1, dt * 3);
+  pred.x += ex * f; pred.y += ey * f;
+  let lastP = pred.trail[pred.trail.length - 1];
+  let dx = pred.x - lastP.x, dy = pred.y - lastP.y, l = Math.hypot(dx, dy);
+  while (l >= S.STEP) {
+    lastP = { x: lastP.x + dx / l * S.STEP, y: lastP.y + dy / l * S.STEP };
+    pred.trail.push(lastP);
+    dx = pred.x - lastP.x; dy = pred.y - lastP.y; l = Math.hypot(dx, dy);
+  }
+  const need = (pred.kids.length + 2) * S.gapIdx(pred);
+  if (pred.trail.length > need + 80) pred.trail.splice(0, pred.trail.length - need);
+  S.computeSegs(pred);
 }
 
 function onlineInput() {
@@ -734,6 +819,8 @@ function frame(t) {
     scene = localScene();
   } else {
     onlineInput();
+    predStep(dt);
+    if (t - net.lastPing > 2000) { net.lastPing = t; sendNet({ t: 'ping', c: performance.now() }); }
     scene = onlineScene() || scene;
   }
   for (let i = floats.length - 1; i >= 0; i--) { floats[i].t += dt; if (floats[i].t > 0.9) floats.splice(i, 1); }
