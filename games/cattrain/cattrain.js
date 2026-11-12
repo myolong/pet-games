@@ -361,6 +361,9 @@ function onlineScene() {
   const d = b.d;
   const fish = [];
   for (let i = 0; i < d.f.length; i += 4) fish.push({ x: d.f[i], y: d.f[i + 1], v: d.f[i + 2], c: d.f[i + 3] });
+  // 굴러다니는 양파: 마지막으로 받은 위치에서 속도대로 이어서 그린다
+  const on = d.o || [], dts = (t - b.at) / 1000;
+  for (let i = 0; i < on.length; i += 4) fish.push({ x: on[i] + on[i + 2] * dts, y: on[i + 1] + on[i + 3] * dts, v: -2, c: 6, vx: on[i + 2] });
   const kittens = [];
   for (let i = 0; i < d.k.length; i += 5) kittens.push({ x: d.k[i], y: d.k[i + 1], fur: FUR_KEYS[d.k[i + 2]], wild: d.k[i + 3] === 1, old: d.k[i + 3] === 2, a: d.k[i + 4] / 100, seed: d.k[i] * 0.37 + d.k[i + 1] * 0.11 });
   const me = d.me ? trains.find((x) => x.id === d.me) || null : null;
@@ -514,9 +517,14 @@ function ouchText(onion, n) {
 }
 
 function drawOnion(f) {
-  const bob = Math.sin(clock * 2 + f.y) * 1.2;
+  // 독버섯보다 1.5배 크게, 구르는 방향으로 기울어 흔들린다
+  const wob = Math.sin(clock * 9 + f.y * 0.1) * 0.25 + (f.vx || 0) * 0.004;
   ctx.save();
-  ctx.translate(f.x, f.y + bob);
+  ctx.translate(f.x, f.y);
+  ctx.rotate(wob);
+  ctx.scale(1.3, 1.3);
+  ctx.fillStyle = 'rgba(0,0,0,.12)';
+  ctx.beginPath(); ctx.ellipse(0, 8, 9, 3, 0, 0, 7); ctx.fill();
   ctx.fillStyle = '#c86fb0';
   ctx.beginPath(); ctx.moveTo(0, -14); ctx.quadraticCurveTo(13, -4, 9, 6); ctx.quadraticCurveTo(0, 12, -9, 6); ctx.quadraticCurveTo(-13, -4, 0, -14); ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1.5;

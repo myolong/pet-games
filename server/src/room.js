@@ -217,7 +217,10 @@ export class Room {
         tr.push([t.id, Math.round(t.x * 10) / 10, Math.round(t.y * 10) / 10, Math.round(t.a * 100), FUR_KEYS.indexOf(t.fur), SCARVES.indexOf(t.scarf), flags, t.name, kids, segs]);
       }
       const f = withFish ? [] : null;
-      if (f) for (const o of w.fish) if (o.x > L && o.x < R && o.y > T && o.y < B) f.push(Math.round(o.x), Math.round(o.y), o.v, o.c);
+      if (f) for (const o of w.fish) if (o.v !== -2 && o.x > L && o.x < R && o.y > T && o.y < B) f.push(Math.round(o.x), Math.round(o.y), o.v, o.c);
+      // 양파는 굴러다니니 매번 보낸다 (위치와 속도)
+      const on = [];
+      for (const o of w.fish) if (o.v === -2 && o.x > L - 100 && o.x < R + 100 && o.y > T - 100 && o.y < B + 100) on.push(Math.round(o.x), Math.round(o.y), Math.round(o.vx), Math.round(o.vy));
       const k = withKits ? [] : null;
       if (k) for (const o of w.kittens) {
         if (o.x < L || o.x > R || o.y < T || o.y > B) continue;
@@ -226,6 +229,7 @@ export class Room {
       const msg = { t: 's', st: Math.round(w.now * 1000), me: me ? me.id : 0, tr: tr, lb: lb };
       if (f) msg.f = f;
       if (k) msg.k = k;
+      msg.o = on;
       if (me) msg.my = [order.indexOf(me) + 1, me.kids.length, Math.floor(me.gauge)];
       if (mm) msg.mm = mm;
       msg.hc = humansNow;

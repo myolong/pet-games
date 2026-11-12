@@ -106,7 +106,26 @@ function spawnFish(w) {
 // 독버섯(v = -1)과 양파(v = -2)는 간식과 같은 목록에 둔다 (화면에 보낼 때도 같이 간다)
 function spawnPoison(w, onion) {
   const p = safeSpot(w, 60, 0);
-  w.fish.push({ x: p.x, y: p.y, v: onion ? -2 : -1, c: onion ? 6 : 5 });
+  const f = { x: p.x, y: p.y, v: onion ? -2 : -1, c: onion ? 6 : 5 };
+  if (onion) { f.vx = 0; f.vy = 0; f.turnT = 0; }
+  w.fish.push(f);
+}
+
+// 양파는 이리저리 굴러다녀서 피하기 어렵다.
+export const ONION_SPEED = [45, 85];
+function rollOnions(w, dt) {
+  for (const f of w.fish) {
+    if (f.v !== -2) continue;
+    f.turnT -= dt;
+    if (f.turnT <= 0) {
+      f.turnT = rand(0.8, 2.2);
+      const a = rand(0, Math.PI * 2), sp = rand(ONION_SPEED[0], ONION_SPEED[1]);
+      f.vx = Math.cos(a) * sp; f.vy = Math.sin(a) * sp;
+    }
+    f.x += f.vx * dt; f.y += f.vy * dt;
+    if (f.x < 30 || f.x > WORLD - 30) { f.vx = -f.vx; f.x = clamp(f.x, 30, WORLD - 30); }
+    if (f.y < 30 || f.y > WORLD - 30) { f.vy = -f.vy; f.y = clamp(f.y, 30, WORLD - 30); }
+  }
 }
 
 function spawnWild(w) {
@@ -321,7 +340,8 @@ function eat(w, t) {
   const fish = w.fish, kittens = w.kittens;
   for (let i = fish.length - 1; i >= 0; i--) {
     const f = fish[i];
-    if (dist2(t.x, t.y, f.x, f.y) < (r + 8) * (r + 8)) {
+    const fr = r + (f.v === -2 ? 13 : 8);
+    if (dist2(t.x, t.y, f.x, f.y) < fr * fr) {
       fish.splice(i, 1);
       if (f.v < 0) {
         // 독버섯: 꼬리 쪽 아기냥 2마리, 양파: 아기냥 절반이 놀라서 도망간다
@@ -444,6 +464,7 @@ export function step(w, dt) {
   let wild = 0;
   for (const k of kittens) if (k.wild) wild++;
   if (wild < WILD_COUNT && Math.random() < dt * 3) spawnWild(w);
+  rollOnions(w, dt);
   let poison = 0, onion = 0;
   for (const f of w.fish) { if (f.v === -1) poison++; else if (f.v === -2) onion++; }
   while (w.fish.length - poison - onion < FISH_COUNT) spawnFish(w);
