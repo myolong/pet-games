@@ -1,0 +1,223 @@
+/* 냥이 꼬리기차: 화면 전체를 쓰는 게임이라 공통 body 여백을 없앤다. */
+body.cattrain {
+  max-width: none;
+  padding: 0;
+  overflow: hidden;
+  background: #6fb56b;
+  font-family: "Jua", -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  display: block;
+  touch-action: none;
+}
+
+.dash {
+  position: fixed;
+  right: calc(16px + env(safe-area-inset-right));
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  border: 4px solid #fff;
+  background: rgba(255, 138, 42, 0.92);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+  text-shadow: 0 1px 2px #b4500a;
+  touch-action: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.dash span { font-size: 26px; }
+.dash.on { background: #e36d0e; transform: scale(0.94); }
+.dash[hidden] { display: none; }
+
+/* 시작 화면 */
+.start {
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  padding: calc(12px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));
+  background: linear-gradient(#ffd9a0e8, #ffeccfe8);
+  color: #8a4a12;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.start[hidden] { display: none; }
+
+.start > * { width: 100%; max-width: 360px; }
+
+.start .home {
+  align-self: flex-start;
+  color: #8a4a12;
+  text-decoration: none;
+  font-size: 17px;
+  width: auto;
+}
+
+.start .site { margin: 0; font-size: 15px; color: #b8651b; }
+
+.start h1 {
+  margin: 4px 0 0;
+  font-size: 56px;
+  line-height: 1.05;
+  font-weight: 400;
+  display: flex;
+  flex-direction: column;
+  color: #fff;
+  -webkit-text-stroke: 3px #8a4a12;
+  paint-order: stroke fill;
+  text-shadow: 0 4px 0 #8a4a12;
+}
+
+.start h1 .yellow { color: #ffcf3f; }
+
+.start .lead { margin: 14px 0; font-size: 17px; }
+
+.panel {
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: 20px;
+  padding: 10px 8px 12px;
+}
+
+.panel .label { margin: 0 0 6px; font-size: 15px; }
+
+.furs { display: flex; justify-content: space-around; }
+
+.furs button {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 4px solid transparent;
+  background: none center / 46px no-repeat;
+  padding: 0;
+}
+
+.furs button[aria-checked="true"] { border-color: #ff7a00; background-color: #fff; }
+
+.name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  background: #fff;
+  border: 2px solid #e6b98a;
+  border-radius: 14px;
+  padding: 6px 14px;
+  font-size: 18px;
+}
+
+.name input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  font: inherit;
+  color: #3b2a20;
+  background: none;
+}
+
+.rules {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+  font-size: 15px;
+  text-align: left;
+  display: grid;
+  gap: 4px;
+}
+
+.start .go {
+  margin-top: auto;
+  border: 0;
+  border-radius: 22px;
+  padding: 14px 0;
+  background: #ff8a2a;
+  box-shadow: 0 6px 0 #e36d0e;
+  color: #fff;
+  font: inherit;
+  font-size: 30px;
+  text-shadow: 0 2px 0 #b4500a;
+}
+
+.start .go:active { transform: translateY(3px); box-shadow: 0 3px 0 #e36d0e; }
+
+/* 결과 창 */
+#result {
+  border: 0;
+  border-radius: 28px;
+  padding: 20px;
+  width: min(340px, calc(100% - 32px));
+  background: #fff8ee;
+  color: #8a4a12;
+  text-align: center;
+  font-family: inherit;
+}
+
+#result::backdrop { background: rgba(30, 20, 10, 0.55); }
+
+.result-title { margin: 0; font-size: 19px; color: #b4500a; }
+.result-cat { width: 80px; height: 80px; display: block; margin: 6px auto 0; }
+.result-sub { margin: 2px 0 10px; font-size: 14px; color: #9a7a5a; }
+
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+.stats div {
+  background: #ffe9c7;
+  border-radius: 14px;
+  padding: 8px 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.stats small { font-size: 12px; color: #9a7a5a; }
+.stats b { font-size: 18px; font-weight: 400; color: #e36d0e; }
+
+.result-best { margin: 10px 0; font-size: 14px; min-height: 1em; }
+.result-best.new { background: #fff1a8; border-radius: 12px; padding: 8px; color: #8a5a00; }
+
+#result button {
+  width: 100%;
+  border: 0;
+  border-radius: 18px;
+  padding: 12px 0;
+  margin-top: 8px;
+  background: #ff8a2a;
+  color: #fff;
+  font: inherit;
+  font-size: 20px;
+}
+
+#result button.continue { background: #4cb86b; font-size: 18px; line-height: 1.2; }
+#result button.continue small { display: block; font-size: 12px; color: #e8ffe8; }
+#result button.continue[hidden] { display: none; }
+#result .ranking-form button { width: auto; font-size: 15px; margin: 0; padding: 8px 16px; border-radius: 999px; }
+
+#result .other {
+  display: block;
+  margin-top: 8px;
+  padding: 10px 0;
+  border-radius: 16px;
+  background: #f0dcc0;
+  color: #8a4a12;
+  text-decoration: none;
+  font-size: 16px;
+}
+
+#result .ranking { font-family: -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; color: #3b2a20; }
