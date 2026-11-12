@@ -10,7 +10,9 @@ export const RAINBOW_V = 8;         // 무지개 실 조각 (드물다)
 export const BASE_SPEED = 170;      // 처음 속도(초당)
 export const BOOST = 1.7;           // 밀기 배율
 export const TURN = 4.5;            // 초당 회전 각도(라디안)
-export const EAT_RATIO = 1.15;      // 이만큼 커야 상대를 감을 수 있다
+export const EAT_RATIO = 1.05;      // 이만큼(5%) 커야 상대를 감을 수 있다
+export const BONK = 330;           // 비슷한 크기끼리 부딪혔을 때 튕겨 나가는 힘
+export const BONK_FADE = 5;        // 튕기는 힘이 줄어드는 빠르기
 export const EAT_KEEP = 0.85;       // 감은 상대 실 중 내 것이 되는 몫 (나머지는 바닥에 흩어진다)
 export const BOT_MAX_S = 700;       // 컴퓨터 냥이가 크게 자라지 않도록
 export const BALL_TARGET = 16;      // 사람 + 컴퓨터 냥이를 합쳐 이 정도로 맞춘다
@@ -61,7 +63,7 @@ function makeBall(w, opts) {
   return {
     id: w.nextId++, name: opts.name, fur: opts.fur, color: opts.color, isPlayer: !!opts.isPlayer, bot: !opts.isPlayer,
     x: opts.x, y: opts.y, a: a, ta: a, s: opts.s || START_S, alive: true, invul: opts.isPlayer ? 3 : 2,
-    boosting: false, boostNow: false, dropAcc: 0, think: 0, goal: null, wanderT: 0,
+    boosting: false, boostNow: false, dropAcc: 0, kx: 0, ky: 0, bonkAt: -9, think: 0, goal: null, wanderT: 0,
     cap: opts.cap || BOT_MAX_S, aggr: opts.aggr || 0, sloppy: opts.sloppy || 0, respawn: 0, maxS: opts.s || START_S, eaten: 0, born: w.now,
   };
 }
@@ -223,8 +225,11 @@ function moveBall(w, b, dt) {
   const turn = TURN * dt * clamp(speed(b.s) / BASE_SPEED + 0.25, 0.6, 1);
   b.a += clamp(angleTo(b.a, b.ta), -turn, turn);
   const r = radius(b.s);
-  b.x = clamp(b.x + Math.cos(b.a) * sp * dt, r, WORLD - r);
-  b.y = clamp(b.y + Math.sin(b.a) * sp * dt, r, WORLD - r);
+  b.x = clamp(b.x + (Math.cos(b.a) * sp + b.kx) * dt, r, WORLD - r);
+  b.y = clamp(b.y + (Math.sin(b.a) * sp + b.ky) * dt, r, WORLD - r);
+  // 튕겨 나간 힘은 금방 줄어든다
+  const fade = Math.exp(-BONK_FADE * dt);
+  b.kx *= fade; b.ky *= fade;
   b.boostNow = boosting;
 }
 
@@ -288,11 +293,18 @@ function collide(w) {
         if (d < rBig + rSmall + (big.isPlayer ? (w.playerReach || 0) : 0)) absorb(w, big, small);
         continue;
       }
-      // 크기가 비슷하면 서로 밀려난다
+      // 크기가 비슷하면 '퉁!' 하고 서로 튕겨 나간다
       if (d >= rs) continue;
       const push = (rs - d) / 2, nx = dx / d, ny = dy / d;
       a.x = clamp(a.x - nx * push, ra, WORLD - ra); a.y = clamp(a.y - ny * push, ra, WORLD - ra);
       b.x = clamp(b.x + nx * push, rb, WORLD - rb); b.y = clamp(b.y + ny * push, rb, WORLD - rb);
+      if (w.now - a.bonkAt > 0.3 || w.now - b.bonkAt > 0.3) {
+        // 작은 쪽이 조금 더 멀리 튕긴다
+        const ka = BONK * Math.sqrt(b.s / (a.s + b.s) * 2), kb = BONK * Math.sqrt(a.s / (a.s + b.s) * 2);
+        a.kx = -nx * ka; a.ky = -ny * ka; b.kx = nx * kb; b.ky = ny * kb;
+        a.bonkAt = b.bonkAt = w.now;
+        w.events.push({ type: 'bonk', a: a, b: b, x: a.x + nx * ra, y: a.y + ny * ra });
+      }
     }
   }
 }
