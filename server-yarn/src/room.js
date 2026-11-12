@@ -153,6 +153,12 @@ export class Room {
   handleEvents() {
     const w = this.world;
     for (const ev of w.events) {
+      if (ev.type === 'bonk') {
+        for (const b of [ev.a, ev.b]) {
+          if (b.isPlayer && b.conn) this.send(b.conn, { t: 'bonk', kx: Math.round(b.kx), ky: Math.round(b.ky), x: Math.round(ev.x), y: Math.round(ev.y) });
+        }
+        continue;
+      }
       if (ev.type === 'absorb' && ev.ball.isPlayer && ev.ball.conn) {
         this.send(ev.ball.conn, { t: 'gulp', n: Math.round(ev.gain) });
         continue;
@@ -201,7 +207,7 @@ export class Room {
         if (!b.alive) continue;
         const pad = 30 + Math.sqrt(b.s) * 2.2 * 2;
         if (b.x < L - pad || b.x > R + pad || b.y < T - pad || b.y > B + pad) continue;
-        const flags = (b.bot ? 1 : 0) | (b.boostNow ? 2 : 0) | (b.invul > 0 ? 4 : 0) | (b === top ? 8 : 0);
+        const flags = (b.bot ? 1 : 0) | (b.boostNow ? 2 : 0) | (b.invul > 0 ? 4 : 0) | (b === top ? 8 : 0) | (w.now - b.bonkAt < 0.35 ? 16 : 0);
         rows.push([b.id, Math.round(b.x * 10) / 10, Math.round(b.y * 10) / 10, Math.round(b.a * 100), FUR_KEYS.indexOf(b.fur), b.color, flags, b.name, Math.round(b.s)]);
       }
       const msg = { t: 's', st: Math.round(w.now * 1000), me: me ? me.id : 0, b: rows, lb: lb };

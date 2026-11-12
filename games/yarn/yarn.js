@@ -220,6 +220,7 @@ let floats = [];
 let death = null;
 let menuTarget = null;
 const rolls = new Map();   // 뭉치마다 굴러간 각도
+const bonkSeen = new Map(); // 뭉치마다 튕기기 시작한 화면 시각
 
 // ───── 혼자 하기 ─────
 function localScene() {
@@ -227,7 +228,7 @@ function localScene() {
   const top = order[0];
   const balls = local.balls.filter((b) => b.alive).map((b) => ({
     id: b.id, name: b.name, fur: b.fur, color: YARN_KEYS[b.color], bot: b.bot, x: b.x, y: b.y, a: b.a, s: b.s,
-    boost: b.boostNow, invul: b.invul > 0, crown: b === top,
+    boost: b.boostNow, invul: b.invul > 0, crown: b === top, bonk: local.now - b.bonkAt < 0.35,
   }));
   const me = localMe && localMe.alive ? balls.find((b) => b.id === localMe.id) : null;
   const myIdx = me ? order.findIndex((b) => b.id === me.id) : -1;
@@ -251,6 +252,7 @@ function localStep(dt) {
       run.eaten++;
       floats.push({ x: localMe.x, y: localMe.y - radius(localMe.s) - 10, text: '꿀꺽! +' + fmtSize(ev.gain), t: 0 });
     }
+    if (ev.type === 'bonk' && (ev.a === localMe || ev.b === localMe || nearCam(ev.x, ev.y))) addBonk(ev.x, ev.y, ev.a === localMe || ev.b === localMe);
     if (ev.type === 'dead' && ev.ball === localMe) {
       const b = localMe;
       run.max = Math.max(run.max, b.maxS);
@@ -273,6 +275,14 @@ function localJoin(cont) {
   localMe = S.addPlayer(local, { name: run.name, fur: run.fur, color: run.color, s: s });
   run.joinedAt = local.now;
   input.a = localMe.a;
+}
+
+// 퉁! 튕기는 효과
+const bonks = [];
+function nearCam(x, y) { return Math.abs(x - cam.x) < vw / cam.z && Math.abs(y - cam.y) < vh / cam.z; }
+function addBonk(x, y, mine) {
+  bonks.push({ x: x, y: y, t: 0 });
+  if (mine && navigator.vibrate) { try { navigator.vibrate(30); } catch (e) {} }
 }
 
 // ───── 같이 하기: 서버 연결 ─────
@@ -358,6 +368,9 @@ function onServer(m) {
       net.gotFirst = true;
       run.max = Math.max(run.max, m.my[1]);
     }
+  } else if (m.t === 'bonk') {
+    if (pred) { pred.kx = m.kx; pred.ky = m.ky; }
+    addBonk(m.x, m.y, true);
   } else if (m.t === 'gulp') {
     run.eaten++;
     const p = pred || (scene && scene.me);
@@ -376,7 +389,7 @@ function joinOnline(cont) {
 function rowToBall(r) {
   return {
     id: r[0], x: r[1], y: r[2], a: r[3] / 100, fur: FUR_KEYS[r[4]] || 'orange', color: YARN_KEYS[r[5]] || 'red',
-    bot: !!(r[6] & 1), boost: !!(r[6] & 2), invul: !!(r[6] & 4), crown: !!(r[6] & 8), name: r[7], s: r[8],
+    bot: !!(r[6] & 1), boost: !!(r[6] & 2), invul: !!(r[6] & 4), crown: !!(r[6] & 8), bonk: !!(r[6] & 16), name: r[7], s: r[8],
   };
 }
 
@@ -430,7 +443,7 @@ function predStep(dt) {
   const row = last.map.get(last.d.me);
   if (!row) return;
   if (!pred || pred.id !== row[0]) {
-    pred = { id: row[0], x: row[1], y: row[2], a: row[3] / 100, s: row[8], hist: [], ex: 0, ey: 0, lastSnap: null };
+    pred = { id: row[0], x: row[1], y: row[2], a: row[3] / 100, s: row[8], kx: 0, ky: 0, hist: [], ex: 0, ey: 0, lastSnap: null };
     return;
   }
   pred.s = row[8];
@@ -439,8 +452,10 @@ function predStep(dt) {
   pred.a += clamp(angleTo(pred.a, input.a), -turn, turn);
   const sp = S.speed(pred.s) * (boosting ? S.BOOST : 1);
   const r = radius(pred.s);
-  pred.x = clamp(pred.x + Math.cos(pred.a) * sp * dt, r, WORLD - r);
-  pred.y = clamp(pred.y + Math.sin(pred.a) * sp * dt, r, WORLD - r);
+  pred.x = clamp(pred.x + (Math.cos(pred.a) * sp + pred.kx) * dt, r, WORLD - r);
+  pred.y = clamp(pred.y + (Math.sin(pred.a) * sp + pred.ky) * dt, r, WORLD - r);
+  const fade = Math.exp(-S.BONK_FADE * dt);
+  pred.kx *= fade; pred.ky *= fade;
   const nowMs = performance.now();
   pred.hist.push({ t: nowMs, x: pred.x, y: pred.y });
   while (pred.hist.length > 2 && nowMs - pred.hist[0].t > 3000) pred.hist.shift();
@@ -543,6 +558,16 @@ function drawBall(b, me) {
   const rot = rollOf(b);
   ctx.save();
   ctx.translate(b.x, b.y);
+  // 튕길 때 뭉치가 말랑하게 찌그러졌다 돌아온다
+  if (b.bonk) {
+    let st = bonkSeen.get(b.id);
+    if (st === undefined) { st = clock; bonkSeen.set(b.id, st); }
+    const t = clock - st;
+    if (t < 0.4) {
+      const k = Math.sin(t * 30) * 0.16 * (1 - t / 0.4);
+      ctx.scale(1 + k, 1 - k);
+    }
+  } else bonkSeen.delete(b.id);
   ctx.save();
   ctx.rotate(rot);
   ctx.drawImage(yarnImg[b.color] || yarnImg.red, -R, -R, R * 2, R * 2);
@@ -604,6 +629,17 @@ function render() {
   if (death && (state === 'dying' || state === 'result')) {
     drawSprite(sprites[death.fur].dizzy, death.x, death.y, 18, -Math.PI / 2);
     if (state === 'dying') text(death.lost ? '앗!' : '돌돌돌…', death.x, death.y - 42, 26, '#fff', 'center', ['#a8325a', 5]);
+  }
+  for (const p of bonks) {
+    const k = p.t / 0.5;
+    ctx.globalAlpha = 1 - k;
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+    for (let i = 0; i < 8; i++) {
+      const a = i * Math.PI / 4, r0 = 8 + k * 26, r1 = r0 + 10;
+      ctx.beginPath(); ctx.moveTo(p.x + Math.cos(a) * r0, p.y + Math.sin(a) * r0); ctx.lineTo(p.x + Math.cos(a) * r1, p.y + Math.sin(a) * r1); ctx.stroke();
+    }
+    text('퉁!', p.x, p.y - 26 - k * 20, 22, '#fff', 'center', ['#3a64c0', 5]);
+    ctx.globalAlpha = 1;
   }
   for (const f of floats) {
     if (f.t < 0) continue;
@@ -918,6 +954,7 @@ function frame(t) {
     scene = onlineScene() || scene;
   }
   for (let i = floats.length - 1; i >= 0; i--) { floats[i].t += dt; if (floats[i].t > 1.1) floats.splice(i, 1); }
+  for (let i = bonks.length - 1; i >= 0; i--) { bonks[i].t += dt; if (bonks[i].t > 0.5) bonks.splice(i, 1); }
   // 카메라: 뭉치가 클수록 멀리서 본다
   let fx = cam.x, fy = cam.y, size = START_S;
   if (scene && scene.me && state === 'play') { fx = scene.me.x; fy = scene.me.y; size = scene.me.s; }
