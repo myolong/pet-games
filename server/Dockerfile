@@ -3,7 +3,7 @@ FROM node:22-alpine
 WORKDIR /app
 RUN echo '{"type":"module","private":true}' > package.json && npm install --no-audit --no-fund ws@8.18.0
 COPY games/cattrain/sim.js games/cattrain/sim.js
-COPY server/src/room.js server/src/node.js server/src/
+COPY server/src/room.js server/src/node.js server/src/budget.js server/src/
 ENV PORT=8080
 EXPOSE 8080
 CMD ["node", "server/src/node.js"]

@@ -234,7 +234,13 @@ function sendView() {
 }
 
 function onServer(m, e) {
-  if (m.t === 'full') {
+  if (m.t === 'closed') {
+    // 이번 달 같이 하기 서버가 쉬는 중: 컴퓨터 냥이와 혼자 논다
+    net.full = true;
+    $('mode-note').textContent = '😴 이번 달 같이 하기는 쉬어요. 컴퓨터 냥이와 놀아요';
+    startLocal();
+    floats.push({ text: '이번 달 같이 하기는 쉬어요. 컴퓨터 냥이와 놀아요', t: -2.5, screen: true });
+  } else if (m.t === 'full') {
     // 방이 꽉 찼으면 다음 방으로
     net.full = true;
     net.room++;
