@@ -32,6 +32,16 @@ export default {
   async fetch(req, env) {
     const url = new URL(req.url);
     if (url.pathname === '/') return new Response('cattrain ok', { headers: { 'content-type': 'text/plain; charset=utf-8' } });
+    if (url.pathname === '/stats') {
+      // 연결 상태 확인: 접속 지점, 놀이터 서버 위치, 서버 박자가 밀린 정도
+      const room = Math.min(MAX_ROOMS, Math.max(1, parseInt(url.searchParams.get('room') || '1', 10) || 1));
+      const stub = env.WORLD.get(env.WORLD.idFromName('apac-room-' + room), { locationHint: 'apac' });
+      const r = await stub.fetch('https://do/stats');
+      const st = await r.json();
+      st.edge = (req.cf && req.cf.colo) || '?';
+      st.country = (req.cf && req.cf.country) || '?';
+      return new Response(JSON.stringify(st, null, 1), { headers: { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*' } });
+    }
     if (url.pathname !== '/ws') return new Response('not found', { status: 404 });
     if (req.headers.get('Upgrade') !== 'websocket') return new Response('websocket only', { status: 426 });
     const origin = req.headers.get('Origin');
@@ -39,7 +49,10 @@ export default {
     const room = Math.min(MAX_ROOMS, Math.max(1, parseInt(url.searchParams.get('room') || '1', 10) || 1));
     // 놀이터 서버는 처음 만들어질 때 자리를 정하고 옮기지 않는다. 한국 사용자가 가깝도록 아시아·태평양에 둔다.
     const id = env.WORLD.idFromName('apac-room-' + room);
-    return env.WORLD.get(id, { locationHint: 'apac' }).fetch(req);
+    // 사용자가 붙은 Cloudflare 접속 지점(공항 코드)을 놀이터 서버에 알려 준다 (연결 상태 확인용)
+    const headers = new Headers(req.headers);
+    headers.set('x-edge-colo', (req.cf && req.cf.colo) || '?');
+    return env.WORLD.get(id, { locationHint: 'apac' }).fetch(new Request(req, { headers }));
   },
 };
 
@@ -54,7 +67,25 @@ export class World {
     this.emptySince = Date.now();
   }
 
+  // 놀이터 서버가 실제로 놓인 Cloudflare 지점을 한 번만 알아 둔다.
+  async whereAmI() {
+    if (this.colo) return this.colo;
+    try {
+      const t = await (await fetch('https://cloudflare.com/cdn-cgi/trace')).text();
+      const m = /colo=(\w+)/.exec(t);
+      this.colo = m ? m[1] : '?';
+    } catch (e) { this.colo = '?'; }
+    return this.colo;
+  }
+
   async fetch(req) {
+    if (new URL(req.url).pathname === '/stats') {
+      return new Response(JSON.stringify({
+        server: await this.whereAmI(), conns: this.conns.size, running: !!this.timer,
+        tickGapAvg: Math.round(this.gapAvg || 0), tickGapMax: this.gapMax || 0,
+      }), { headers: { 'content-type': 'application/json' } });
+    }
+    const edge = req.headers.get('x-edge-colo') || '?';
     const pair = new WebSocketPair();
     const client = pair[0], ws = pair[1];
     ws.accept();
@@ -71,6 +102,7 @@ export class World {
     ws.addEventListener('close', bye);
     ws.addEventListener('error', bye);
     this.start();
+    this.whereAmI().then((colo) => this.send(c, { t: 'where', edge: edge, server: colo }));
     return new Response(null, { status: 101, webSocket: client });
   }
 
@@ -132,7 +164,7 @@ export class World {
       c.train.input.dash = !!m.d;
     } else if (m.t === 'ping') {
       // 화면이 서버까지 걸리는 시간을 재도록 그대로 돌려준다.
-      this.send(c, { t: 'pong', c: m.c });
+      this.send(c, { t: 'pong', c: m.c, g: this.gapMax || 0 });
     } else if (m.t === 'view') {
       const hw = Number(m.hw), hh = Number(m.hh);
       if (isFinite(hw) && isFinite(hh)) c.view = { hw: Math.min(800, Math.max(200, hw)), hh: Math.min(800, Math.max(200, hh)) };
@@ -141,6 +173,14 @@ export class World {
 
   tick() {
     const nowMs = Date.now();
+    // 서버 박자가 얼마나 밀리는지 잰다 (2초 동안 가장 긴 틈)
+    if (this.prevTick) {
+      const gap = nowMs - this.prevTick;
+      this.gapAvg = (this.gapAvg || TICK_MS) + (gap - (this.gapAvg || TICK_MS)) * 0.05;
+      if (nowMs - (this.gapWin || 0) > 2000) { this.gapMax = this.gapCur || gap; this.gapCur = 0; this.gapWin = nowMs; }
+      this.gapCur = Math.max(this.gapCur || 0, gap);
+    }
+    this.prevTick = nowMs;
     if (this.conns.size === 0) {
       if (nowMs - this.emptySince > IDLE_STOP_MS) this.stop();
       this.last = nowMs;
