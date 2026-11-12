@@ -33,7 +33,7 @@ function angleTo(from, to) {
 }
 
 export function radius(s) { return 12 + Math.sqrt(Math.max(0, s)) * 2.2; }
-export function speed(s) { return BASE_SPEED * Math.pow(START_S / Math.max(START_S, s), 0.2); }
+export function speed(s) { return BASE_SPEED * Math.pow(START_S / Math.max(START_S, s), 0.15); }
 export function canEat(big, small) { return big.s >= small.s * EAT_RATIO; }
 // 화면에 보여 줄 크기 글자: 38cm, 1.2m
 export function fmtSize(s) { return s < 100 ? Math.round(s) + 'cm' : (Math.floor(s / 10) / 10).toFixed(1) + 'm'; }
@@ -154,7 +154,7 @@ function botThink(w, b) {
   for (const o of w.balls) {
     if (o === b || !o.alive || !canEat(o, b) || o.invul > 0) continue;
     const d = Math.sqrt(dist2(b.x, b.y, o.x, o.y)) - radius(o.s) - r;
-    if (d < 220 && d < td) { td = d; threat = o; }
+    if (d < 150 && d < td) { td = d; threat = o; }
   }
   if (threat && Math.random() > b.sloppy) {
     want = Math.atan2(b.y - threat.y, b.x - threat.x);
@@ -281,8 +281,8 @@ function collide(w) {
       const big = a.s >= b.s ? a : b, small = big === a ? b : a;
       const rBig = big === a ? ra : rb, rSmall = big === a ? rb : ra;
       if (canEat(big, small) && big.invul <= 0 && small.invul <= 0) {
-        // 작은 뭉치의 중심이 큰 뭉치 안으로 들어오면 감긴다
-        if (d < rBig - rSmall * 0.2) absorb(w, big, small);
+        // 큰 뭉치에 살짝만 닿아도 감긴다
+        if (d < (rBig + rSmall) * 0.9) absorb(w, big, small);
         continue;
       }
       // 크기가 비슷하면 서로 밀려난다
