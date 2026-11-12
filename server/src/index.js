@@ -35,7 +35,7 @@ export default {
     if (url.pathname === '/stats') {
       // 연결 상태 확인: 접속 지점, 놀이터 서버 위치, 서버 박자가 밀린 정도
       const room = Math.min(MAX_ROOMS, Math.max(1, parseInt(url.searchParams.get('room') || '1', 10) || 1));
-      const stub = env.WORLD.get(env.WORLD.idFromName('apac-room-' + room), { locationHint: 'apac' });
+      const stub = env.WORLD.get(env.WORLD.idFromName('wnam-room-' + room), { locationHint: 'wnam' });
       const r = await stub.fetch('https://do/stats');
       const st = await r.json();
       st.edge = (req.cf && req.cf.colo) || '?';
@@ -47,12 +47,12 @@ export default {
     const origin = req.headers.get('Origin');
     if (origin && !ALLOWED_ORIGINS.some((re) => re.test(origin))) return new Response('forbidden', { status: 403 });
     const room = Math.min(MAX_ROOMS, Math.max(1, parseInt(url.searchParams.get('room') || '1', 10) || 1));
-    // 놀이터 서버는 처음 만들어질 때 자리를 정하고 옮기지 않는다. 한국 사용자가 가깝도록 아시아·태평양에 둔다.
-    const id = env.WORLD.idFromName('apac-room-' + room);
+    // 놀이터 서버는 처음 만들어질 때 자리를 정하고 옮기지 않는다. 무료 요금제에서 한국 접속은 미국 서부(LAX 등)로 들어오므로, 서버도 미국 서부에 둬서 태평양을 한 번만 건너게 한다.
+    const id = env.WORLD.idFromName('wnam-room-' + room);
     // 사용자가 붙은 Cloudflare 접속 지점(공항 코드)을 놀이터 서버에 알려 준다 (연결 상태 확인용)
     const headers = new Headers(req.headers);
     headers.set('x-edge-colo', (req.cf && req.cf.colo) || '?');
-    return env.WORLD.get(id, { locationHint: 'apac' }).fetch(new Request(req, { headers }));
+    return env.WORLD.get(id, { locationHint: 'wnam' }).fetch(new Request(req, { headers }));
   },
 };
 
