@@ -730,18 +730,26 @@ function steerTo(clientX, clientY) {
   const dx = clientX - hx, dy = clientY - hy;
   if (dx * dx + dy * dy > 64) input.a = Math.atan2(dy, dx);
 }
+// 휴대폰: 화면을 두 번 톡톡 치고 그대로 누르고 있으면 달리기, 손을 떼면 멈춘다.
+let lastTap = { t: -9, x: 0, y: 0 };
+let tapDashPointer = null;
 canvas.addEventListener('pointerdown', (e) => {
   if (state !== 'play') return;
   input.steer = e.pointerId;
   steerTo(e.clientX, e.clientY);
   if (e.pointerType === 'mouse' && e.button === 0) input.mouseDash = true;
+  if (e.pointerType !== 'mouse') {
+    const now = performance.now();
+    if (now - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 60) tapDashPointer = e.pointerId;
+    lastTap = { t: now, x: e.clientX, y: e.clientY };
+  }
   syncDash();
 });
 canvas.addEventListener('pointermove', (e) => {
   if (state !== 'play') return;
   if (e.pointerType === 'mouse' || e.pointerId === input.steer) steerTo(e.clientX, e.clientY);
 });
-const endSteer = (e) => { if (e.pointerId === input.steer) input.steer = null; if (e.pointerType === 'mouse') input.mouseDash = false; syncDash(); };
+const endSteer = (e) => { if (e.pointerId === input.steer) input.steer = null; if (e.pointerId === tapDashPointer) tapDashPointer = null; if (e.pointerType === 'mouse') input.mouseDash = false; syncDash(); };
 canvas.addEventListener('pointerup', endSteer);
 canvas.addEventListener('pointercancel', endSteer);
 
@@ -753,7 +761,7 @@ dashBtn.addEventListener('pointercancel', dashUp);
 dashBtn.addEventListener('contextmenu', (e) => e.preventDefault());
 
 function syncDash() {
-  input.dash = dashPointer !== null || !!input.keys[' '] || !!input.mouseDash;
+  input.dash = dashPointer !== null || tapDashPointer !== null || !!input.keys[' '] || !!input.mouseDash;
   dashBtn.classList.toggle('on', input.dash);
 }
 window.addEventListener('keydown', (e) => {
@@ -797,7 +805,7 @@ function beginPlay() {
   startEl.hidden = true;
   state = 'play';
   dashBtn.hidden = false;
-  dashPointer = null; input.mouseDash = false; input.keys = {}; input.keyTurn = 0; syncDash();
+  dashPointer = null; tapDashPointer = null; input.mouseDash = false; input.keys = {}; input.keyTurn = 0; syncDash();
   hintUntil = clock + 4;
   death = null;
 }
