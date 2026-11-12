@@ -198,7 +198,9 @@ function localJoin(cont) {
 
 // ───── 같이 하기: 서버 연결 ─────
 const net = { ws: null, room: 1, snaps: [], meId: 0, lastA: 99, lastDash: false, lastSend: 0, lastLen: 0, hc: 0, mm: [], gotFirst: false, rtt: 150, gapAvg: 50, jitter: 10, lastPing: 0 };
-let pred = null;    // 내 기차는 내 폰에서 먼저 움직이고, 서버 위치에 조금씩 맞춘다
+let pred = null;
+// 주소 끝에 ?debug 를 붙이면 연결 상태를 화면에 보여 준다.
+const debug = { on: /[?&]debug/.test(location.search), err: 0, snaps: 0, fps: 60, bytes: 0 };    // 내 기차는 내 폰에서 먼저 움직이고, 서버 위치에 조금씩 맞춘다
 
 function connect(onReady, onFail) {
   let settled = false;
@@ -218,7 +220,7 @@ function connect(onReady, onFail) {
   ws.onmessage = (e) => {
     let m;
     try { m = JSON.parse(e.data); } catch (err) { return; }
-    onServer(m, ws);
+    onServer(m, e.data);
   };
 }
 
@@ -231,7 +233,7 @@ function sendView() {
   sendNet({ t: 'view', hw: Math.round(vw / 2 / zMin + 80), hh: Math.round(vh / 2 / zMin + 80) });
 }
 
-function onServer(m) {
+function onServer(m, e) {
   if (m.t === 'full') {
     // 방이 꽉 찼으면 다음 방으로
     net.full = true;
@@ -245,11 +247,13 @@ function onServer(m) {
     net.lastLen = 0;
     net.lastA = 99;
     pred = null;
+    net.lastPing = 0;
     hintUntil = clock + 4;
   } else if (m.t === 'pong') {
     const rtt = performance.now() - m.c;
     if (rtt >= 0 && rtt < 5000) net.rtt += (rtt - net.rtt) * 0.3;
   } else if (m.t === 's') {
+    debug.bytes += ((e && e.length) || 0);
     const arrive = performance.now();
     if (net.snaps.length) {
       const gap = arrive - net.snaps[net.snaps.length - 1].at;
@@ -366,7 +370,7 @@ function kidsOf(str) {
 }
 
 function makePred(row) {
-  const p = { id: row[0], x: row[1], y: row[2], a: row[3] / 100, kids: kidsOf(row[8]), trail: [], segs: [], box: {} };
+  const p = { id: row[0], x: row[1], y: row[2], a: row[3] / 100, kids: kidsOf(row[8]), trail: [], segs: [], box: {}, hist: [], ex: 0, ey: 0, lastSnap: null };
   // 서버가 준 아기냥 자리를 꼬리 끝부터 머리까지 STEP 간격 경로로 펼친다.
   const pts = [];
   const sg = row[9];
@@ -401,14 +405,25 @@ function predStep(dt) {
   const sp = S.SPEED * (dashing ? S.DASH : 1);
   pred.x += Math.cos(pred.a) * sp * dt;
   pred.y += Math.sin(pred.a) * sp * dt;
-  // 서버가 본 내 머리 위치를 지금 시각까지 앞으로 밀어 본 곳
-  const age = (performance.now() - last.at + net.rtt / 2) / 1000;
-  const sa = row[3] / 100, ssp = S.SPEED * (row[6] & 2 ? S.DASH : 1);
-  const tx = row[1] + Math.cos(sa) * ssp * age, ty = row[2] + Math.sin(sa) * ssp * age;
-  const ex = tx - pred.x, ey = ty - pred.y;
-  if (ex * ex + ey * ey > 140 * 140) { pred = makePred(row); return; }
-  const f = Math.min(1, dt * 3);
-  pred.x += ex * f; pred.y += ey * f;
+  const nowMs = performance.now();
+  pred.hist.push({ t: nowMs, x: pred.x, y: pred.y });
+  while (pred.hist.length > 2 && nowMs - pred.hist[0].t > 3000) pred.hist.shift();
+  // 새 서버 정보가 오면, 그 정보는 '왕복 시간 전'의 내 조작으로 만든 위치이므로
+  // 그때의 내 예측 위치와 비교해서 차이만 조금씩 고친다. (도는 중에도 끌려가지 않게)
+  if (last !== pred.lastSnap) {
+    pred.lastSnap = last;
+    const then = last.at - net.rtt - 25;
+    let h = pred.hist[0];
+    for (const e of pred.hist) { if (e.t <= then) h = e; else break; }
+    pred.ex = row[1] - h.x; pred.ey = row[2] - h.y;
+    debug.err = Math.hypot(pred.ex, pred.ey);
+    if (debug.err > 220) { pred = makePred(row); debug.snaps++; return; }
+  }
+  const f = Math.min(1, dt * 4);
+  const cx = pred.ex * f, cy = pred.ey * f;
+  pred.ex -= cx; pred.ey -= cy;
+  pred.x += cx; pred.y += cy;
+  for (const e of pred.hist) { e.x += cx; e.y += cy; }
   let lastP = pred.trail[pred.trail.length - 1];
   let dx = pred.x - lastP.x, dy = pred.y - lastP.y, l = Math.hypot(dx, dy);
   while (l >= S.STEP) {
@@ -615,6 +630,18 @@ function drawHud() {
     if (f.t >= 0 || !f.screen) continue;
     text(f.text, vw / 2, vh / 2 - 120, 16, '#fff', 'center', ['rgba(0,0,0,.55)', 4]);
   }
+  if (debug.on && mode === 'online') {
+    const lines = [
+      '왕복 ' + Math.round(net.rtt) + 'ms',
+      '정보 간격 ' + Math.round(net.gapAvg) + 'ms ±' + Math.round(net.jitter),
+      '보여주기 지연 ' + Math.round(interpMs) + 'ms',
+      '화면 ' + Math.round(debug.fps) + 'fps',
+      '내 위치 차이 ' + Math.round(debug.err) + ' (맞춤 ' + debug.snaps + '회)',
+      '받는 양 ' + Math.round(debug.kbps) + 'KB/s',
+    ];
+    ctx.fillStyle = 'rgba(0,0,0,.6)'; rrect(vw / 2 - 90, vh - 300, 180, lines.length * 18 + 10, 8); ctx.fill();
+    lines.forEach((l, i) => text(l, vw / 2, vh - 286 + i * 18, 12, '#fff'));
+  }
   if (state === 'play' && !scene.me && mode === 'online') {
     text('놀이터에 들어가는 중…', vw / 2, vh / 2, 20, '#fff', 'center', ['rgba(0,0,0,.5)', 4]);
   }
@@ -813,6 +840,8 @@ function frame(t) {
   const dt = Math.min(0.05, (t - lastT) / 1000);
   lastT = t;
   clock += dt;
+  if (dt > 0) debug.fps += (1 / dt - debug.fps) * 0.05;
+  if (t - (debug.kbT || 0) > 1000) { debug.kbps = debug.bytes / 1024 / ((t - (debug.kbT || t - 1000)) / 1000); debug.bytes = 0; debug.kbT = t; }
   if (input.keyTurn) input.a += input.keyTurn * 3.2 * dt;
   if (mode === 'local' || state === 'menu' || state === 'connecting') {
     if (!document.hidden && state !== 'result') localStep(dt);
