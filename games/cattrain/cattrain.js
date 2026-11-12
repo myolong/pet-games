@@ -197,7 +197,7 @@ function localJoin(cont) {
 }
 
 // ───── 같이 하기: 서버 연결 ─────
-const net = { ws: null, room: 1, snaps: [], meId: 0, lastA: 99, lastDash: false, lastSend: 0, lastLen: 0, hc: 0, mm: [], gotFirst: false, rtt: 150, gapAvg: 50, jitter: 10, lastPing: 0 };
+const net = { ws: null, room: 1, snaps: [], meId: 0, lastA: 99, lastDash: false, lastSend: 0, lastLen: 0, hc: 0, mm: [], gotFirst: false, rtt: 150, gapAvg: 50, jitter: 10, lastPing: 0, off: null, late: 0, lastArrive: 0, lastF: null, lastK: null };
 let pred = null;
 // 주소 끝에 ?debug 를 붙이면 연결 상태를 화면에 보여 준다.
 const debug = { on: /[?&]debug/.test(location.search), err: 0, snaps: 0, fps: 60, bytes: 0 };    // 내 기차는 내 폰에서 먼저 움직이고, 서버 위치에 조금씩 맞춘다
@@ -243,6 +243,10 @@ function onServer(m, e) {
   } else if (m.t === 'joined') {
     net.meId = m.id;
     net.snaps = [];
+    net.off = null;
+    net.late = 0;
+    net.lastF = null;
+    net.lastK = null;
     net.gotFirst = false;
     net.lastLen = 0;
     net.lastA = 99;
@@ -255,14 +259,24 @@ function onServer(m, e) {
   } else if (m.t === 's') {
     debug.bytes += ((e && e.length) || 0);
     const arrive = performance.now();
+    // 간식·아기냥은 가끔만 오니, 안 온 판에는 앞에 받은 것을 그대로 쓴다.
+    if (m.f) net.lastF = m.f; else m.f = net.lastF || [];
+    if (m.k) net.lastK = m.k; else m.k = net.lastK || [];
+    // 서버가 그 모습을 만든 시각(st)으로 줄을 세운다. 인터넷이 잠깐 막혔다 몰려 와도 간격이 고르게 유지된다.
+    const st = typeof m.st === 'number' ? m.st : arrive;
+    const off = arrive - st;
+    if (net.off == null || off < net.off) net.off = off; else net.off += 0.3;
+    const late = off - net.off;
+    net.late += (late - net.late) * (late > net.late ? 0.3 : 0.02);
     if (net.snaps.length) {
-      const gap = arrive - net.snaps[net.snaps.length - 1].at;
+      const gap = arrive - net.lastArrive;
       net.gapAvg += (gap - net.gapAvg) * 0.1;
       net.jitter += (Math.abs(gap - net.gapAvg) - net.jitter) * 0.1;
-      interpMs = clamp(net.gapAvg + net.jitter * 3 + 10, 60, 250);
     }
-    net.snaps.push({ at: performance.now(), d: m, map: new Map(m.tr.map((r) => [r[0], r])) });
-    if (net.snaps.length > 6) net.snaps.shift();
+    net.lastArrive = arrive;
+    interpMs = clamp(70 + net.late * 1.5, 70, 300);
+    net.snaps.push({ at: st + net.off, d: m, map: new Map(m.tr.map((r) => [r[0], r])) });
+    if (net.snaps.length > 10) net.snaps.shift();
     if (m.mm) net.mm = m.mm;
     net.hc = m.hc || 0;
     if (m.my) {
@@ -298,7 +312,7 @@ function onlineScene() {
   let a = snaps[0], b = snaps[0];
   const n = snaps.length;
   if (n >= 2 && t >= snaps[n - 1].at) {
-    // 다음 정보가 늦으면 마지막 움직임대로 조금(최대 0.15초) 더 이어 간다.
+    // 다음 정보가 늦으면 마지막 움직임대로 조금(최대 0.1초) 더 이어 간다.
     a = snaps[n - 2]; b = snaps[n - 1];
   } else {
     for (let i = n - 1; i >= 0; i--) {
@@ -306,7 +320,8 @@ function onlineScene() {
     }
   }
   const span = b.at - a.at;
-  const k = span > 0 ? clamp((t - a.at) / span, 0, 1 + 150 / span) : 1;
+  // 두 장 간격이 너무 짧으면 앞으로 늘이지 않는다 (줄이 길게 튀어 나가던 문제).
+  const k = span >= 20 ? clamp((t - a.at) / span, 0, 1 + Math.min(100, span) / span) : span > 0 ? clamp((t - a.at) / span, 0, 1) : 1;
   const trains = [];
   for (const r of b.d.tr) {
     const p = a.map.get(r[0]);
@@ -633,7 +648,7 @@ function drawHud() {
   if (debug.on && mode === 'online') {
     const lines = [
       '왕복 ' + Math.round(net.rtt) + 'ms',
-      '정보 간격 ' + Math.round(net.gapAvg) + 'ms ±' + Math.round(net.jitter),
+      '정보 간격 ' + Math.round(net.gapAvg) + 'ms ±' + Math.round(net.jitter) + ' 늦음 ' + Math.round(net.late),
       '보여주기 지연 ' + Math.round(interpMs) + 'ms',
       '화면 ' + Math.round(debug.fps) + 'fps',
       '내 위치 차이 ' + Math.round(debug.err) + ' (맞춤 ' + debug.snaps + '회)',

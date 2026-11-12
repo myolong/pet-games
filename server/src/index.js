@@ -7,7 +7,6 @@ import {
 } from '../../games/cattrain/sim.js';
 
 const TICK_MS = 50;
-const SNAP_EVERY = 1;          // 매 틱 = 1초에 20번
 const MAX_PLAYERS = 24;        // 방 하나에 들어올 수 있는 사람 수
 const MAX_ROOMS = 5;
 const IDLE_STOP_MS = 60000;    // 아무도 없으면 1분 뒤 쉰다
@@ -38,8 +37,9 @@ export default {
     const origin = req.headers.get('Origin');
     if (origin && !ALLOWED_ORIGINS.some((re) => re.test(origin))) return new Response('forbidden', { status: 403 });
     const room = Math.min(MAX_ROOMS, Math.max(1, parseInt(url.searchParams.get('room') || '1', 10) || 1));
-    const id = env.WORLD.idFromName('room-' + room);
-    return env.WORLD.get(id).fetch(req);
+    // 놀이터 서버는 처음 만들어질 때 자리를 정하고 옮기지 않는다. 한국 사용자가 가깝도록 아시아·태평양에 둔다.
+    const id = env.WORLD.idFromName('apac-room-' + room);
+    return env.WORLD.get(id, { locationHint: 'apac' }).fetch(req);
   },
 };
 
@@ -135,7 +135,7 @@ export class World {
       this.send(c, { t: 'pong', c: m.c });
     } else if (m.t === 'view') {
       const hw = Number(m.hw), hh = Number(m.hh);
-      if (isFinite(hw) && isFinite(hh)) c.view = { hw: Math.min(1100, Math.max(200, hw)), hh: Math.min(1100, Math.max(200, hh)) };
+      if (isFinite(hw) && isFinite(hh)) c.view = { hw: Math.min(800, Math.max(200, hw)), hh: Math.min(800, Math.max(200, hh)) };
     }
   }
 
@@ -146,10 +146,22 @@ export class World {
       this.last = nowMs;
       return;
     }
-    const dt = Math.min(0.1, (nowMs - this.last) / 1000);
+    // 타이머가 늦거나 몰려 와도 게임 시간은 0.05초씩 일정하게 진행한다.
+    this.acc = Math.min(500, (this.acc || 0) + (nowMs - this.last));
     this.last = nowMs;
+    if (this.acc < TICK_MS) return;
     const w = this.world;
-    step(w, dt);
+    while (this.acc >= TICK_MS) {
+      this.acc -= TICK_MS;
+      step(w, TICK_MS / 1000);
+      this.handleEvents();
+      this.tickNo++;
+    }
+    this.broadcast();
+  }
+
+  handleEvents() {
+    const w = this.world;
     for (const ev of w.events) {
       if (ev.type !== 'crash' || !ev.train.isPlayer) continue;
       const t = ev.train, c = t.conn;
@@ -167,8 +179,6 @@ export class World {
       });
     }
     w.events.length = 0;
-    this.tickNo++;
-    if (this.tickNo % SNAP_EVERY === 0) this.broadcast();
   }
 
   broadcast() {
@@ -178,7 +188,13 @@ export class World {
     const lb = order.slice(0, 5).map((t) => [t.name, t.bot ? 1 : 0, t.kids.length, t.id]);
     let humansNow = 0;
     for (const t of w.trains) if (t.isPlayer) humansNow++;
-    const withMap = this.tickNo % 10 === 0;
+    const withMap = this.tickNo - (this.lastMap || 0) >= 10;
+    if (withMap) this.lastMap = this.tickNo;
+    // 간식은 잘 안 움직이니 0.5초마다, 길 잃은 아기냥은 0.1초마다만 보낸다 (받는 양 줄이기)
+    const withFish = this.tickNo - (this.lastFish || 0) >= 10;
+    if (withFish) this.lastFish = this.tickNo;
+    const withKits = this.tickNo - (this.lastKits || 0) >= 2;
+    if (withKits) this.lastKits = this.tickNo;
     let mm = null;
     if (withMap) {
       mm = [];
@@ -199,14 +215,16 @@ export class World {
         const flags = (t.bot ? 1 : 0) | (t.dashNow ? 2 : 0) | (t.invul > 0 ? 4 : 0) | (t === top ? 8 : 0);
         tr.push([t.id, Math.round(t.x * 10) / 10, Math.round(t.y * 10) / 10, Math.round(t.a * 100), FUR_KEYS.indexOf(t.fur), SCARVES.indexOf(t.scarf), flags, t.name, kids, segs]);
       }
-      const f = [];
-      for (const o of w.fish) if (o.x > L && o.x < R && o.y > T && o.y < B) f.push(Math.round(o.x), Math.round(o.y), o.v, o.c);
-      const k = [];
-      for (const o of w.kittens) {
+      const f = withFish ? [] : null;
+      if (f) for (const o of w.fish) if (o.x > L && o.x < R && o.y > T && o.y < B) f.push(Math.round(o.x), Math.round(o.y), o.v, o.c);
+      const k = withKits ? [] : null;
+      if (k) for (const o of w.kittens) {
         if (o.x < L || o.x > R || o.y < T || o.y > B) continue;
         k.push(Math.round(o.x), Math.round(o.y), FUR_KEYS.indexOf(o.fur), o.wild ? 1 : (w.now - o.born > 26 ? 2 : 0), Math.round(o.a * 100));
       }
-      const msg = { t: 's', me: me ? me.id : 0, tr: tr, f: f, k: k, lb: lb };
+      const msg = { t: 's', st: Math.round(w.now * 1000), me: me ? me.id : 0, tr: tr, lb: lb };
+      if (f) msg.f = f;
+      if (k) msg.k = k;
       if (me) msg.my = [order.indexOf(me) + 1, me.kids.length, Math.floor(me.gauge)];
       if (mm) msg.mm = mm;
       msg.hc = humansNow;
