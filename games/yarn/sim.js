@@ -2,9 +2,9 @@
 // 그림·화면 코드는 넣지 않는다.
 // 크기(s)는 털실뭉치에 감긴 실 길이(cm)로 센다. 뭉치 반지름과 속도는 이 값으로 정해진다.
 
-export const WORLD = 3000;          // 놀이터(거실) 한 변 길이
+export const WORLD = 5100;          // 놀이터(거실) 한 변 길이 (처음 3000의 1.7배)
 export const START_S = 30;          // 처음 털실 길이(cm)
-export const BIT_COUNT = 1100;      // 바닥에 흩어진 실 조각 수
+export const BIT_COUNT = 3200;      // 바닥에 흩어진 실 조각 수
 export const BIT_V = 2;             // 실 조각 하나에 늘어나는 길이
 export const RAINBOW_V = 8;         // 무지개 실 조각 (드물다)
 export const BASE_SPEED = 170;      // 처음 속도(초당)
@@ -15,13 +15,13 @@ export const BONK = 330;           // 비슷한 크기끼리 부딪혔을 때 �
 export const BONK_FADE = 5;        // 튕기는 힘이 줄어드는 빠르기
 export const EAT_KEEP = 0.85;       // 감은 상대 실 중 내 것이 되는 몫 (나머지는 바닥에 흩어진다)
 export const BOT_MAX_S = 700;       // 컴퓨터 냥이가 크게 자라지 않도록
-export const BALL_TARGET = 16;      // 사람 + 컴퓨터 냥이를 합쳐 이 정도로 맞춘다
+export const BALL_TARGET = 26;      // 사람 + 컴퓨터 냥이를 합쳐 이 정도로 맞춘다
 export const MIN_BOTS = 4;
 
 export const FUR_KEYS = ['orange', 'gray', 'white', 'black', 'calico', 'cream'];
 export const PICK_FURS = ['orange', 'gray', 'white', 'black', 'calico'];
 export const YARN_KEYS = ['red', 'blue', 'mint', 'yellow', 'purple', 'pink'];
-export const BOT_NAMES = ['까망이', '회색번개', '콩떡', '삼색이', '치즈볼', '두부', '호떡', '모찌', '깜냥', '보리', '라떼', '흰둥이', '꼬미', '찹쌀', '감자', '누룽지', '인절미', '팥떡', '고등어', '버터', '쿠키', '밤톨', '단추', '구름'];
+export const BOT_NAMES = ['까망이', '회색번개', '콩떡', '삼색이', '치즈볼', '두부', '호떡', '모찌', '깜냥', '보리', '라떼', '흰둥이', '꼬미', '찹쌀', '감자', '누룽지', '인절미', '팥떡', '고등어', '버터', '쿠키', '밤톨', '단추', '구름', '솜사탕', '뭉치', '털복이', '호빵', '깨비', '보들이', '실타래', '방울'];
 
 const rand = (a, b) => a + Math.random() * (b - a);
 const randInt = (n) => Math.floor(Math.random() * n);
@@ -343,7 +343,7 @@ export function step(w, dt) {
   }
   let fresh = 0;
   for (const f of w.bits) if (f.drop === undefined) fresh++;
-  if (fresh < BIT_COUNT && Math.random() < dt * 60) { spawnBit(w); if (Math.random() < 0.5) spawnBit(w); }
+  if (fresh < BIT_COUNT && Math.random() < dt * 170) { spawnBit(w); if (Math.random() < 0.5) spawnBit(w); }
 }
 
 export function ranked(w) {
