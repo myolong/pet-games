@@ -13,7 +13,7 @@ export const WILD_COUNT = 180;      // 놀이터를 떠도는 길 잃은 아기�
 export const POISON_COUNT = 135;    // 먹으면 아기냥이 도망가는 독버섯 수
 export const POISON_LOSS = 2;       // 독버섯 하나에 도망가는 아기냥 수
 export const ONION_COUNT = 24;      // 먹으면 아기냥 절반이 도망가는 양파 수 (드물다)
-export const BOT_MAX_LEN = 30;
+export const BOT_MAX_LEN = 60;
 export const TRAIN_TARGET = 20;     // 사람 + 컴퓨터 냥이를 합쳐 이 정도로 맞춘다
 export const MIN_BOTS = 3;
 
