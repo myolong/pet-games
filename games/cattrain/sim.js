@@ -9,7 +9,9 @@ export const TURN = 4.2;            // 초당 회전 각도(라디안)
 export const GAUGE_MAX = 5;         // 간식 몇 개에 아기냥 한 마리
 export const START_LEN = 3;
 export const FISH_COUNT = 450;
-export const WILD_COUNT = 28;       // 놀이터를 떠도는 길 잃은 아기냥 수
+export const WILD_COUNT = 60;       // 놀이터를 떠도는 길 잃은 아기냥 수
+export const POISON_COUNT = 45;     // 먹으면 아기냥이 도망가는 독버섯 수
+export const POISON_LOSS = 2;       // 독버섯 하나에 도망가는 아기냥 수
 export const BOT_MAX_LEN = 30;
 export const TRAIN_TARGET = 12;     // 사람 + 컴퓨터 냥이를 합쳐 이 정도로 맞춘다
 export const MIN_BOTS = 3;
@@ -69,6 +71,7 @@ export function createWorld() {
     usedNames: new Set(),
   };
   for (let i = 0; i < FISH_COUNT; i++) spawnFish(w);
+  for (let i = 0; i < POISON_COUNT; i++) spawnPoison(w);
   for (let i = 0; i < WILD_COUNT; i++) spawnWild(w);
   balanceBots(w);
   return w;
@@ -96,6 +99,12 @@ function makeTrain(w, opts) {
 function spawnFish(w) {
   const gold = Math.random() < 0.05;
   w.fish.push({ x: rand(30, WORLD - 30), y: rand(30, WORLD - 30), v: gold ? 3 : 1, c: gold ? 4 : randInt(4) });
+}
+
+// 독버섯은 간식과 같은 목록에 v = -1 로 둔다 (화면에 보낼 때도 같이 간다)
+function spawnPoison(w) {
+  const p = safeSpot(w, 60, 0);
+  w.fish.push({ x: p.x, y: p.y, v: -1, c: 5 });
 }
 
 function spawnWild(w) {
@@ -226,7 +235,7 @@ function botThink(w, b) {
   }
   if (!goal) {
     let bd = 260 * 260;
-    for (const f of w.fish) { const d = dist2(b.x, b.y, f.x, f.y) / f.v; if (d < bd) { bd = d; goal = f; } }
+    for (const f of w.fish) { if (f.v < 0) continue; const d = dist2(b.x, b.y, f.x, f.y) / f.v; if (d < bd) { bd = d; goal = f; } }
   }
   if (!goal) {
     if (!b.goal || b.wanderT < w.now || dist2(b.x, b.y, b.goal.x, b.goal.y) < 60 * 60) {
@@ -248,6 +257,16 @@ function botThink(w, b) {
     }
     want = best;
     hunting = false;
+  }
+  // 앞에 독버섯이 있으면 살짝 비켜 간다 (덜렁이 봇은 가끔 그냥 먹는다)
+  if (Math.random() > b.sloppy) {
+    for (const f of w.fish) {
+      if (f.v >= 0) continue;
+      const dx = f.x - b.x, dy = f.y - b.y;
+      if (dx * dx + dy * dy > 90 * 90) continue;
+      const ang = Math.atan2(dy, dx), diff = angleTo(want, ang);
+      if (Math.abs(diff) < 0.6) { want = ang - (diff >= 0 ? 1 : -1) * 0.9; break; }
+    }
   }
   b.ta = want;
   b.dashing = hunting && b.gauge > 1;
@@ -302,6 +321,20 @@ function eat(w, t) {
     const f = fish[i];
     if (dist2(t.x, t.y, f.x, f.y) < (r + 8) * (r + 8)) {
       fish.splice(i, 1);
+      if (f.v < 0) {
+        // 독버섯: 꼬리 쪽 아기냥이 놀라서 도망간다
+        let n = 0;
+        for (; n < POISON_LOSS && t.kids.length > 0; n++) {
+          const s = t.segs[t.kids.length - 1];
+          const fur = t.kids.pop();
+          dropKitten(w, s ? s.x : t.x, s ? s.y : t.y, fur, true);
+          // 바로 다시 주워 먹지 못하게 잠깐 피한다
+          const k = w.kittens[w.kittens.length - 1];
+          k.shy = t.id; k.shyUntil = w.now + 2;
+        }
+        w.events.push({ type: 'poison', train: t, n: n });
+        continue;
+      }
       t.gauge += f.v;
       while (t.gauge >= GAUGE_MAX) {
         t.gauge -= GAUGE_MAX;
@@ -311,6 +344,7 @@ function eat(w, t) {
   }
   for (let i = kittens.length - 1; i >= 0; i--) {
     const k = kittens[i];
+    if (k.shy === t.id && w.now < k.shyUntil) continue;
     if (dist2(t.x, t.y, k.x, k.y) < (r + 10) * (r + 10)) {
       kittens.splice(i, 1);
       if (t.isPlayer || t.kids.length < BOT_MAX_LEN) addKid(w, t, k.fur);
@@ -405,8 +439,11 @@ export function step(w, dt) {
   }
   let wild = 0;
   for (const k of kittens) if (k.wild) wild++;
-  if (wild < WILD_COUNT && Math.random() < dt * 0.6) spawnWild(w);
-  while (w.fish.length < FISH_COUNT) spawnFish(w);
+  if (wild < WILD_COUNT && Math.random() < dt * 3) spawnWild(w);
+  let poison = 0;
+  for (const f of w.fish) if (f.v < 0) poison++;
+  while (w.fish.length - poison < FISH_COUNT) spawnFish(w);
+  if (poison < POISON_COUNT && Math.random() < dt * 0.5) spawnPoison(w);
   for (const t of w.trains) if (t.alive && t.kids.length > t.maxLen) t.maxLen = t.kids.length;
 }
 

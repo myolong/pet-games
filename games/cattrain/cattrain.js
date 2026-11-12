@@ -172,6 +172,7 @@ function localStep(dt) {
   S.step(local, dt);
   for (const ev of local.events) {
     if (ev.type === 'gain' && ev.train === localMe) floats.push({ x: localMe.x + 34, y: localMe.y - 10, text: '+1 냥', t: 0 });
+    if (ev.type === 'poison' && ev.train === localMe) floats.push({ x: localMe.x + 34, y: localMe.y - 10, text: ev.n ? '독버섯! -' + ev.n + ' 냥' : '독버섯!', t: 0 });
     if (ev.type === 'crash' && ev.train === localMe) {
       const t = localMe;
       S.removeTrain(local, t);
@@ -297,6 +298,11 @@ function onServer(m, e) {
       if (net.gotFirst && m.my[1] > net.lastLen && state === 'play') {
         const meRow = net.snaps[net.snaps.length - 1].map.get(m.me);
         if (meRow) floats.push({ x: meRow[1] + 34, y: meRow[2] - 10, text: '+' + (m.my[1] - net.lastLen) + ' 냥', t: 0 });
+      }
+      if (net.gotFirst && m.my[1] <= net.lastLen - 2 && state === 'play') {
+        // 한꺼번에 둘 이상 줄었으면 독버섯을 먹은 것
+        const meRow = net.snaps[net.snaps.length - 1].map.get(m.me);
+        if (meRow) floats.push({ x: meRow[1] + 34, y: meRow[2] - 10, text: '독버섯! -' + (net.lastLen - m.my[1]) + ' 냥', t: 0 });
       }
       net.lastLen = m.my[1];
       net.gotFirst = true;
@@ -502,7 +508,21 @@ function text(t, x, y, size, color, align, stroke) {
   ctx.fillText(t, x, y);
 }
 
+function drawMushroom(f) {
+  const bob = Math.sin(clock * 2 + f.x) * 1.2;
+  ctx.save();
+  ctx.translate(f.x, f.y + bob);
+  ctx.fillStyle = '#f3e6d0';
+  ctx.fillRect(-3.5, -2, 7, 9);
+  ctx.fillStyle = '#8e3fd1';
+  ctx.beginPath(); ctx.ellipse(0, -2, 11, 8, 0, Math.PI, 0); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#fff';
+  for (const [dx, dy, r] of [[-5, -5, 2], [3, -7, 1.6], [6, -3, 1.4]]) { ctx.beginPath(); ctx.arc(dx, dy, r, 0, 7); ctx.fill(); }
+  ctx.restore();
+}
+
 function drawFish(f) {
+  if (f.v < 0) { drawMushroom(f); return; }
   const s = f.v > 1 ? 10 : 7;
   const rot = (f.x * 7.3 + f.y * 3.1) % 6.28;
   ctx.save();
@@ -903,5 +923,5 @@ requestAnimationFrame(frame);
 // 시험용: 자동 확인 스크립트가 상태를 들여다볼 수 있게 한다.
 window.__cattrain = {
   get state() { return state; }, get mode() { return mode; }, get scene() { return scene; },
-  get local() { return local; }, get localMe() { return localMe; }, startRun,
+  get local() { return local; }, get localMe() { return localMe; }, get floats() { return floats; }, startRun,
 };
