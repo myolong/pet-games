@@ -10,6 +10,7 @@ const MAX_PLAYERS = 20;        // 방 하나에 들어올 수 있는 사람 수
 export const MAX_ROOMS = 5;
 const IDLE_STOP_MS = 60000;    // 아무도 없으면 1분 뒤 쉰다
 const MAX_MSGS_PER_SEC = 30;
+const PLAYER_REACH = 40;
 
 export const ALLOWED_ORIGINS = [/^https:\/\/myolong\.github\.io$/, /^https:\/\/aywls931128-source\.github\.io$/, /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/];
 
@@ -58,7 +59,11 @@ export class Room {
   }
 
   start() {
-    if (!this.world) this.world = createWorld();
+    if (!this.world) {
+      this.world = createWorld();
+      // 내 폰 화면은 서버보다 0.1~0.2초 앞서 보인다. 사람이 상대를 감을 때 그만큼 멀리서도 감기게 한다.
+      this.world.playerReach = PLAYER_REACH;
+    }
     if (this.timer) return;
     this.last = Date.now();
     this.timer = setInterval(() => this.tick(), TICK_MS);

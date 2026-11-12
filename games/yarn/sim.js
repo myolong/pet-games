@@ -277,16 +277,19 @@ function collide(w) {
       if (!b.alive) continue;
       const ra = radius(a.s), rb = radius(b.s);
       const dx = b.x - a.x, dy = b.y - a.y, d2 = dx * dx + dy * dy, rs = ra + rb;
-      if (d2 >= rs * rs) continue;
+      const reach = (a.isPlayer || b.isPlayer) ? (w.playerReach || 0) : 0;
+      if (d2 >= (rs + reach) * (rs + reach)) continue;
       const d = Math.sqrt(d2) || 0.01;
       const big = a.s >= b.s ? a : b, small = big === a ? b : a;
       const rBig = big === a ? ra : rb, rSmall = big === a ? rb : ra;
       if (canEat(big, small) && big.invul <= 0 && small.invul <= 0) {
-        // 큰 뭉치에 살짝만 닿아도 감긴다
-        if (d < (rBig + rSmall) * 0.9) absorb(w, big, small);
+        // 큰 뭉치에 닿기만 해도 감긴다. 같이 하기에서는 내 화면이 서버보다 조금 앞서 보이므로
+        // 사람이 감을 때는 여유(w.playerReach, 서버가 정함)를 더 준다.
+        if (d < rBig + rSmall + (big.isPlayer ? (w.playerReach || 0) : 0)) absorb(w, big, small);
         continue;
       }
       // 크기가 비슷하면 서로 밀려난다
+      if (d >= rs) continue;
       const push = (rs - d) / 2, nx = dx / d, ny = dy / d;
       a.x = clamp(a.x - nx * push, ra, WORLD - ra); a.y = clamp(a.y - ny * push, ra, WORLD - ra);
       b.x = clamp(b.x + nx * push, rb, WORLD - rb); b.y = clamp(b.y + ny * push, rb, WORLD - rb);
