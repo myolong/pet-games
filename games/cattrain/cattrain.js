@@ -172,7 +172,7 @@ function localStep(dt) {
   S.step(local, dt);
   for (const ev of local.events) {
     if (ev.type === 'gain' && ev.train === localMe) floats.push({ x: localMe.x + 34, y: localMe.y - 10, text: '+1 냥', t: 0 });
-    if (ev.type === 'poison' && ev.train === localMe) floats.push({ x: localMe.x + 34, y: localMe.y - 10, text: ev.n ? '독버섯! -' + ev.n + ' 냥' : '독버섯!', t: 0 });
+    if (ev.type === 'poison' && ev.train === localMe) floats.push({ x: localMe.x + 34, y: localMe.y - 10, text: ouchText(ev.onion, ev.n), t: 0 });
     if (ev.type === 'crash' && ev.train === localMe) {
       const t = localMe;
       S.removeTrain(local, t);
@@ -299,15 +299,16 @@ function onServer(m, e) {
         const meRow = net.snaps[net.snaps.length - 1].map.get(m.me);
         if (meRow) floats.push({ x: meRow[1] + 34, y: meRow[2] - 10, text: '+' + (m.my[1] - net.lastLen) + ' 냥', t: 0 });
       }
-      if (net.gotFirst && m.my[1] <= net.lastLen - 2 && state === 'play') {
-        // 한꺼번에 둘 이상 줄었으면 독버섯을 먹은 것
-        const meRow = net.snaps[net.snaps.length - 1].map.get(m.me);
-        if (meRow) floats.push({ x: meRow[1] + 34, y: meRow[2] - 10, text: '독버섯! -' + (net.lastLen - m.my[1]) + ' 냥', t: 0 });
-      }
       net.lastLen = m.my[1];
       net.gotFirst = true;
       run.max = Math.max(run.max, m.my[1]);
     }
+  } else if (m.t === 'ouch') {
+    // 독버섯이나 양파를 먹었다
+    const last = net.snaps[net.snaps.length - 1];
+    const meRow = last && last.map.get(net.meId);
+    if (meRow) floats.push({ x: meRow[1] + 34, y: meRow[2] - 10, text: ouchText(m.onion, m.n), t: 0 });
+    net.lastLen = Math.max(0, net.lastLen - (m.n || 0));
   } else if (m.t === 'dead') {
     pred = null;
     onDead({ by: m.by, bot: m.bot, max: m.max, rank: m.rank, count: m.count, lived: m.lived, canCont: m.canCont, x: m.x, y: m.y, a: m.a / 100, fur: m.fur });
@@ -508,6 +509,23 @@ function text(t, x, y, size, color, align, stroke) {
   ctx.fillText(t, x, y);
 }
 
+function ouchText(onion, n) {
+  return (onion ? '양파! 절반이 도망' : '독버섯!') + (n ? ' -' + n + ' 냥' : '');
+}
+
+function drawOnion(f) {
+  const bob = Math.sin(clock * 2 + f.y) * 1.2;
+  ctx.save();
+  ctx.translate(f.x, f.y + bob);
+  ctx.fillStyle = '#c86fb0';
+  ctx.beginPath(); ctx.moveTo(0, -14); ctx.quadraticCurveTo(13, -4, 9, 6); ctx.quadraticCurveTo(0, 12, -9, 6); ctx.quadraticCurveTo(-13, -4, 0, -14); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(0, -12); ctx.quadraticCurveTo(-5, -2, -2, 8); ctx.moveTo(0, -12); ctx.quadraticCurveTo(5, -2, 2, 8); ctx.stroke();
+  ctx.strokeStyle = '#6fb04a'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(0, -13); ctx.lineTo(-3, -20); ctx.moveTo(0, -13); ctx.lineTo(3, -19); ctx.stroke();
+  ctx.restore();
+}
+
 function drawMushroom(f) {
   const bob = Math.sin(clock * 2 + f.x) * 1.2;
   ctx.save();
@@ -522,6 +540,7 @@ function drawMushroom(f) {
 }
 
 function drawFish(f) {
+  if (f.v === -2) { drawOnion(f); return; }
   if (f.v < 0) { drawMushroom(f); return; }
   const s = f.v > 1 ? 10 : 7;
   const rot = (f.x * 7.3 + f.y * 3.1) % 6.28;

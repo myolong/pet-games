@@ -160,6 +160,10 @@ export class Room {
   handleEvents() {
     const w = this.world;
     for (const ev of w.events) {
+      if (ev.type === 'poison' && ev.train.isPlayer && ev.train.conn) {
+        this.send(ev.train.conn, { t: 'ouch', n: ev.n, onion: ev.onion ? 1 : 0 });
+        continue;
+      }
       if (ev.type !== 'crash' || !ev.train.isPlayer) continue;
       const t = ev.train, c = t.conn;
       removeTrain(w, t);
