@@ -3,9 +3,9 @@
 -- 닉네임은 1~8자, 점수는 게임별 상한 이하만 받는다. 기록 시각은 서버가 정한다.
 create table public.scores (
   id bigint generated always as identity primary key,
-  game text not null check (game in ('snack','mouse','tower','pixelmart','cattrain','yarn')),
+  game text not null check (game in ('snack','mouse','tower','pixelmart','cattrain')),
   name text not null check (char_length(name) between 1 and 8),
-  score integer not null check (score > 0 and score <= case when game in ('pixelmart','yarn') then 20000 else 3000 end),
+  score integer not null check (score > 0 and score <= case when game = 'pixelmart' then 20000 else 3000 end),
   created_at timestamptz not null default now()
 );
 create index scores_rank on public.scores (game, score desc);
@@ -20,8 +20,3 @@ grant insert (game, name, score) on public.scores to anon;
 -- alter table public.scores drop constraint scores_game_check;
 -- alter table public.scores add constraint scores_game_check check (game in ('snack','mouse','tower','pixelmart','cattrain'));
 
--- 2026-11: '냥이 털실 굴리기'(yarn) 게임 추가 (점수 = 최대 크기 cm, 상한 20000). 이미 표를 만든 경우 아래 네 줄만 Run 한다.
--- alter table public.scores drop constraint scores_game_check;
--- alter table public.scores add constraint scores_game_check check (game in ('snack','mouse','tower','pixelmart','cattrain','yarn'));
--- alter table public.scores drop constraint scores_score_check;
--- alter table public.scores add constraint scores_score_check check (score > 0 and score <= case when game in ('pixelmart','yarn') then 20000 else 3000 end);
