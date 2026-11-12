@@ -172,7 +172,7 @@ function localStep(dt) {
   S.step(local, dt);
   for (const ev of local.events) {
     if (ev.type === 'gain' && ev.train === localMe) floats.push({ x: localMe.x + 34, y: localMe.y - 10, text: '+1 냥', t: 0 });
-    if (ev.type === 'poison' && ev.train === localMe) floats.push({ x: localMe.x + 34, y: localMe.y - 10, text: ev.n ? '독버섯! -' + ev.n + ' 냥' : '독버섯!', t: 0 });
+    if (ev.type === 'poison' && ev.train === localMe) floats.push({ x: localMe.x + 34, y: localMe.y - 10, text: ouchText(ev.onion, ev.n), t: 0 });
     if (ev.type === 'crash' && ev.train === localMe) {
       const t = localMe;
       S.removeTrain(local, t);
@@ -299,15 +299,16 @@ function onServer(m, e) {
         const meRow = net.snaps[net.snaps.length - 1].map.get(m.me);
         if (meRow) floats.push({ x: meRow[1] + 34, y: meRow[2] - 10, text: '+' + (m.my[1] - net.lastLen) + ' 냥', t: 0 });
       }
-      if (net.gotFirst && m.my[1] <= net.lastLen - 2 && state === 'play') {
-        // 한꺼번에 둘 이상 줄었으면 독버섯을 먹은 것
-        const meRow = net.snaps[net.snaps.length - 1].map.get(m.me);
-        if (meRow) floats.push({ x: meRow[1] + 34, y: meRow[2] - 10, text: '독버섯! -' + (net.lastLen - m.my[1]) + ' 냥', t: 0 });
-      }
       net.lastLen = m.my[1];
       net.gotFirst = true;
       run.max = Math.max(run.max, m.my[1]);
     }
+  } else if (m.t === 'ouch') {
+    // 독버섯이나 양파를 먹었다
+    const last = net.snaps[net.snaps.length - 1];
+    const meRow = last && last.map.get(net.meId);
+    if (meRow) floats.push({ x: meRow[1] + 34, y: meRow[2] - 10, text: ouchText(m.onion, m.n), t: 0 });
+    net.lastLen = Math.max(0, net.lastLen - (m.n || 0));
   } else if (m.t === 'dead') {
     pred = null;
     onDead({ by: m.by, bot: m.bot, max: m.max, rank: m.rank, count: m.count, lived: m.lived, canCont: m.canCont, x: m.x, y: m.y, a: m.a / 100, fur: m.fur });
@@ -360,6 +361,9 @@ function onlineScene() {
   const d = b.d;
   const fish = [];
   for (let i = 0; i < d.f.length; i += 4) fish.push({ x: d.f[i], y: d.f[i + 1], v: d.f[i + 2], c: d.f[i + 3] });
+  // 굴러다니는 양파: 마지막으로 받은 위치에서 속도대로 이어서 그린다
+  const on = d.o || [], dts = (t - b.at) / 1000;
+  for (let i = 0; i < on.length; i += 4) fish.push({ x: on[i] + on[i + 2] * dts, y: on[i + 1] + on[i + 3] * dts, v: -2, c: 6, vx: on[i + 2] });
   const kittens = [];
   for (let i = 0; i < d.k.length; i += 5) kittens.push({ x: d.k[i], y: d.k[i + 1], fur: FUR_KEYS[d.k[i + 2]], wild: d.k[i + 3] === 1, old: d.k[i + 3] === 2, a: d.k[i + 4] / 100, seed: d.k[i] * 0.37 + d.k[i + 1] * 0.11 });
   const me = d.me ? trains.find((x) => x.id === d.me) || null : null;
@@ -508,6 +512,28 @@ function text(t, x, y, size, color, align, stroke) {
   ctx.fillText(t, x, y);
 }
 
+function ouchText(onion, n) {
+  return (onion ? '양파! 절반이 도망' : '독버섯!') + (n ? ' -' + n + ' 냥' : '');
+}
+
+function drawOnion(f) {
+  // 독버섯보다 1.5배 크게, 구르는 방향으로 기울어 흔들린다
+  const wob = Math.sin(clock * 9 + f.y * 0.1) * 0.25 + (f.vx || 0) * 0.004;
+  ctx.save();
+  ctx.translate(f.x, f.y);
+  ctx.rotate(wob);
+  ctx.scale(1.3, 1.3);
+  ctx.fillStyle = 'rgba(0,0,0,.12)';
+  ctx.beginPath(); ctx.ellipse(0, 8, 9, 3, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#c86fb0';
+  ctx.beginPath(); ctx.moveTo(0, -14); ctx.quadraticCurveTo(13, -4, 9, 6); ctx.quadraticCurveTo(0, 12, -9, 6); ctx.quadraticCurveTo(-13, -4, 0, -14); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(0, -12); ctx.quadraticCurveTo(-5, -2, -2, 8); ctx.moveTo(0, -12); ctx.quadraticCurveTo(5, -2, 2, 8); ctx.stroke();
+  ctx.strokeStyle = '#6fb04a'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(0, -13); ctx.lineTo(-3, -20); ctx.moveTo(0, -13); ctx.lineTo(3, -19); ctx.stroke();
+  ctx.restore();
+}
+
 function drawMushroom(f) {
   const bob = Math.sin(clock * 2 + f.x) * 1.2;
   ctx.save();
@@ -522,6 +548,7 @@ function drawMushroom(f) {
 }
 
 function drawFish(f) {
+  if (f.v === -2) { drawOnion(f); return; }
   if (f.v < 0) { drawMushroom(f); return; }
   const s = f.v > 1 ? 10 : 7;
   const rot = (f.x * 7.3 + f.y * 3.1) % 6.28;
