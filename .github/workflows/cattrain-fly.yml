@@ -21,4 +21,6 @@ jobs:
       - uses: superfly/flyctl-actions/setup-flyctl@1.5
       # 처음 한 번은 앱을 만든다 (이미 있으면 그냥 넘어간다)
       - run: flyctl apps create nyangnyang-cattrain || true
+      # 요금 기록용 저장 공간 (1GB, 도쿄). 없을 때만 만든다
+      - run: flyctl volumes list -a nyangnyang-cattrain | grep -q cattrain_data || flyctl volumes create cattrain_data -a nyangnyang-cattrain -r nrt -s 1 --yes
       - run: flyctl deploy . --config server/fly.toml --dockerfile server/Dockerfile --remote-only --ha=false

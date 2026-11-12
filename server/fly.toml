@@ -3,6 +3,14 @@
 app = "nyangnyang-cattrain"
 primary_region = "nrt"
 
+# 이번 달 쓴 시간·데이터 기록 (요금 상한용). 1GB
+[mounts]
+  source = "cattrain_data"
+  destination = "/data"
+
+[env]
+  BUDGET_USD = "2.0"
+
 [http_service]
   internal_port = 8080
   force_https = true
