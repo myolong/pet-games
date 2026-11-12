@@ -253,7 +253,10 @@ function onServer(m, e) {
     pred = null;
     net.lastPing = 0;
     hintUntil = clock + 4;
+  } else if (m.t === 'where') {
+    net.edge = m.edge; net.server = m.server;
   } else if (m.t === 'pong') {
+    net.srvGap = m.g || 0;
     const rtt = performance.now() - m.c;
     if (rtt >= 0 && rtt < 5000) net.rtt += (rtt - net.rtt) * 0.3;
   } else if (m.t === 's') {
@@ -647,14 +650,15 @@ function drawHud() {
   }
   if (debug.on && mode === 'online') {
     const lines = [
-      '왕복 ' + Math.round(net.rtt) + 'ms',
+      '왕복 ' + Math.round(net.rtt) + 'ms (' + (net.edge || '?') + '→' + (net.server || '?') + ')',
+      '서버 박자 최대 ' + Math.round(net.srvGap || 0) + 'ms',
       '정보 간격 ' + Math.round(net.gapAvg) + 'ms ±' + Math.round(net.jitter) + ' 늦음 ' + Math.round(net.late),
       '보여주기 지연 ' + Math.round(interpMs) + 'ms',
       '화면 ' + Math.round(debug.fps) + 'fps',
       '내 위치 차이 ' + Math.round(debug.err) + ' (맞춤 ' + debug.snaps + '회)',
       '받는 양 ' + Math.round(debug.kbps) + 'KB/s',
     ];
-    ctx.fillStyle = 'rgba(0,0,0,.6)'; rrect(vw / 2 - 90, vh - 300, 180, lines.length * 18 + 10, 8); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,.6)'; rrect(vw / 2 - 110, vh - 300, 220, lines.length * 18 + 10, 8); ctx.fill();
     lines.forEach((l, i) => text(l, vw / 2, vh - 286 + i * 18, 12, '#fff'));
   }
   if (state === 'play' && !scene.me && mode === 'online') {
