@@ -841,7 +841,6 @@ nameEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDe
 
 // ───── 결과 창 ─────
 const dialog = $('result');
-const ranking = window.Ranking ? window.Ranking.create('cattrain', $('ranking')) : { show() {} };
 const resultCat = $('result-cat').getContext('2d');
 
 function fmtTime(sec) {
@@ -881,7 +880,6 @@ function showResult(info) {
     bestEl.className = 'result-best';
   }
   $('continue-btn').hidden = !info.canCont;
-  ranking.show(run.max);
   dialog.returnValue = '';
   dialog.showModal();
 }

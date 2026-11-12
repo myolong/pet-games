@@ -835,7 +835,6 @@ nameEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDe
 
 // ───── 결과 창 ─────
 const dialog = $('result');
-const ranking = window.Ranking ? window.Ranking.create('yarn', $('ranking')) : { show() {} };
 const resultCat = $('result-cat').getContext('2d');
 
 function onDead(info) {
@@ -880,7 +879,6 @@ function showResult(info) {
     bestEl.className = 'result-best';
   }
   $('continue-btn').hidden = !info.canCont;
-  ranking.show(score);
   dialog.returnValue = '';
   dialog.showModal();
 }
