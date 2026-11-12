@@ -634,7 +634,7 @@ function drawHud() {
   }
   if (clock < hintUntil + 4 && state === 'play') {
     ctx.fillStyle = 'rgba(255,255,255,.75)'; rrect(12, y2, 150, 24, 12); ctx.fill();
-    text('🐢 클수록 느려져요', 87, y2 + 12, 12.5, '#8a3a5a');
+    text('💨 밀기로 따라잡아요', 87, y2 + 12, 12.5, '#8a3a5a');
   }
   // 순위
   const w = 150, x0 = vw - w - 12;
