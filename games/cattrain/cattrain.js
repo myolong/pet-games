@@ -721,7 +721,6 @@ function drawHud() {
 
 // ───── 조작 ─────
 const input = { a: 0, dash: false, keyTurn: 0, keys: {}, steer: null, mouseDash: false };
-const dashBtn = $('dash');
 
 function steerTo(clientX, clientY) {
   const me = scene && scene.me;
@@ -753,16 +752,9 @@ const endSteer = (e) => { if (e.pointerId === input.steer) input.steer = null; i
 canvas.addEventListener('pointerup', endSteer);
 canvas.addEventListener('pointercancel', endSteer);
 
-let dashPointer = null;
-dashBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); dashPointer = e.pointerId; try { dashBtn.setPointerCapture(e.pointerId); } catch (err) {} syncDash(); });
-const dashUp = (e) => { if (e.pointerId === dashPointer) dashPointer = null; syncDash(); };
-dashBtn.addEventListener('pointerup', dashUp);
-dashBtn.addEventListener('pointercancel', dashUp);
-dashBtn.addEventListener('contextmenu', (e) => e.preventDefault());
 
 function syncDash() {
-  input.dash = dashPointer !== null || tapDashPointer !== null || !!input.keys[' '] || !!input.mouseDash;
-  dashBtn.classList.toggle('on', input.dash);
+  input.dash = tapDashPointer !== null || !!input.keys[' '] || !!input.mouseDash;
 }
 window.addEventListener('keydown', (e) => {
   if (state !== 'play') return;
@@ -804,8 +796,7 @@ if (SERVER) $('mode-note').hidden = false;
 function beginPlay() {
   startEl.hidden = true;
   state = 'play';
-  dashBtn.hidden = false;
-  dashPointer = null; tapDashPointer = null; input.mouseDash = false; input.keys = {}; input.keyTurn = 0; syncDash();
+  tapDashPointer = null; input.mouseDash = false; input.keys = {}; input.keyTurn = 0; syncDash();
   hintUntil = clock + 4;
   death = null;
 }
@@ -860,7 +851,6 @@ function onDead(info) {
   if (state !== 'play') return;
   death = info;
   state = 'dying';
-  dashBtn.hidden = true;
   setTimeout(() => showResult(info), 1300);
 }
 

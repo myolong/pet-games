@@ -670,7 +670,7 @@ function drawHud() {
   }
   if (clock < hintUntil + 4 && state === 'play') {
     ctx.fillStyle = 'rgba(255,255,255,.75)'; rrect(12, y2, 150, 24, 12); ctx.fill();
-    text('💨 두 번 톡톡+꾹 = 밀기', 87, y2 + 12, 12.5, '#8a3a5a');
+    text('💨 톡톡+꾹 누르면 밀기', 87, y2 + 12, 12.5, '#8a3a5a');
   }
   // 순위
   const w = 150, x0 = vw - w - 12;
@@ -727,7 +727,6 @@ function drawHud() {
 
 // ───── 조작 ─────
 const input = { a: 0, boost: false, keyTurn: 0, keys: {}, steer: null, mouseBoost: false };
-const boostBtn = $('boost');
 
 function steerTo(clientX, clientY) {
   const me = scene && scene.me;
@@ -759,16 +758,9 @@ const endSteer = (e) => { if (e.pointerId === input.steer) input.steer = null; i
 canvas.addEventListener('pointerup', endSteer);
 canvas.addEventListener('pointercancel', endSteer);
 
-let boostPointer = null;
-boostBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); boostPointer = e.pointerId; try { boostBtn.setPointerCapture(e.pointerId); } catch (err) {} syncBoost(); });
-const boostUp = (e) => { if (e.pointerId === boostPointer) boostPointer = null; syncBoost(); };
-boostBtn.addEventListener('pointerup', boostUp);
-boostBtn.addEventListener('pointercancel', boostUp);
-boostBtn.addEventListener('contextmenu', (e) => e.preventDefault());
 
 function syncBoost() {
-  input.boost = boostPointer !== null || tapBoostPointer !== null || !!input.keys[' '] || !!input.mouseBoost;
-  boostBtn.classList.toggle('on', input.boost);
+  input.boost = tapBoostPointer !== null || !!input.keys[' '] || !!input.mouseBoost;
 }
 window.addEventListener('keydown', (e) => {
   if (state !== 'play') return;
@@ -835,8 +827,7 @@ if (SERVER) $('mode-note').hidden = false;
 function beginPlay() {
   startEl.hidden = true;
   state = 'play';
-  boostBtn.hidden = false;
-  boostPointer = null; tapBoostPointer = null; input.mouseBoost = false; input.keys = {}; input.keyTurn = 0; syncBoost();
+  tapBoostPointer = null; input.mouseBoost = false; input.keys = {}; input.keyTurn = 0; syncBoost();
   hintUntil = clock + 4;
   death = null;
 }
@@ -885,7 +876,6 @@ function onDead(info) {
   if (state !== 'play') return;
   death = info;
   state = 'dying';
-  boostBtn.hidden = true;
   setTimeout(() => showResult(info), 1300);
 }
 
