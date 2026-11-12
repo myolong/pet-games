@@ -670,7 +670,7 @@ function drawHud() {
   }
   if (clock < hintUntil + 4 && state === 'play') {
     ctx.fillStyle = 'rgba(255,255,255,.75)'; rrect(12, y2, 150, 24, 12); ctx.fill();
-    text('💨 밀기로 따라잡아요', 87, y2 + 12, 12.5, '#8a3a5a');
+    text('💨 두 번 톡톡+꾹 = 밀기', 87, y2 + 12, 12.5, '#8a3a5a');
   }
   // 순위
   const w = 150, x0 = vw - w - 12;
@@ -736,18 +736,26 @@ function steerTo(clientX, clientY) {
   const dx = clientX - hx, dy = clientY - hy;
   if (dx * dx + dy * dy > 64) input.a = Math.atan2(dy, dx);
 }
+// 휴대폰: 화면을 두 번 톡톡 치고 그대로 누르고 있으면 밀기, 손을 떼면 멈춘다.
+let lastTap = { t: -9, x: 0, y: 0 };
+let tapBoostPointer = null;
 canvas.addEventListener('pointerdown', (e) => {
   if (state !== 'play') return;
   input.steer = e.pointerId;
   steerTo(e.clientX, e.clientY);
   if (e.pointerType === 'mouse' && e.button === 0) input.mouseBoost = true;
+  if (e.pointerType !== 'mouse') {
+    const now = performance.now();
+    if (now - lastTap.t < 350 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 60) tapBoostPointer = e.pointerId;
+    lastTap = { t: now, x: e.clientX, y: e.clientY };
+  }
   syncBoost();
 });
 canvas.addEventListener('pointermove', (e) => {
   if (state !== 'play') return;
   if (e.pointerType === 'mouse' || e.pointerId === input.steer) steerTo(e.clientX, e.clientY);
 });
-const endSteer = (e) => { if (e.pointerId === input.steer) input.steer = null; if (e.pointerType === 'mouse') input.mouseBoost = false; syncBoost(); };
+const endSteer = (e) => { if (e.pointerId === input.steer) input.steer = null; if (e.pointerId === tapBoostPointer) tapBoostPointer = null; if (e.pointerType === 'mouse') input.mouseBoost = false; syncBoost(); };
 canvas.addEventListener('pointerup', endSteer);
 canvas.addEventListener('pointercancel', endSteer);
 
@@ -759,7 +767,7 @@ boostBtn.addEventListener('pointercancel', boostUp);
 boostBtn.addEventListener('contextmenu', (e) => e.preventDefault());
 
 function syncBoost() {
-  input.boost = boostPointer !== null || !!input.keys[' '] || !!input.mouseBoost;
+  input.boost = boostPointer !== null || tapBoostPointer !== null || !!input.keys[' '] || !!input.mouseBoost;
   boostBtn.classList.toggle('on', input.boost);
 }
 window.addEventListener('keydown', (e) => {
@@ -828,7 +836,7 @@ function beginPlay() {
   startEl.hidden = true;
   state = 'play';
   boostBtn.hidden = false;
-  boostPointer = null; input.mouseBoost = false; input.keys = {}; input.keyTurn = 0; syncBoost();
+  boostPointer = null; tapBoostPointer = null; input.mouseBoost = false; input.keys = {}; input.keyTurn = 0; syncBoost();
   hintUntil = clock + 4;
   death = null;
 }
