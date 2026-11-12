@@ -1,0 +1,14 @@
+# 냥이 꼬리기차 같이 하기 서버. GitHub Actions(.github/workflows/cattrain-server.yml)가 배포한다.
+name = "cattrain"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+workers_dev = true
+
+[[durable_objects.bindings]]
+name = "WORLD"
+class_name = "World"
+
+# 무료 요금제는 SQLite 방식 Durable Object만 쓸 수 있다.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["World"]

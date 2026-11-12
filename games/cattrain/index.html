@@ -25,6 +25,7 @@
     <p class="site">냥냥놀이터</p>
     <h1><span>냥이</span><span class="yellow">꼬리기차</span></h1>
     <p class="lead">길 잃은 아기냥이를 모아<br>가장 긴 기차를 만들어요!</p>
+    <p class="mode-note" id="mode-note" hidden>👥 다른 사람들과 같은 놀이터에서 놀아요</p>
     <div class="panel">
       <p class="label">대장 냥이 털색</p>
       <div class="furs" id="furs" role="radiogroup" aria-label="대장 냥이 털색"></div>
@@ -34,7 +35,7 @@
       <li>👆 가고 싶은 쪽으로 손가락을 움직여요</li>
       <li>🐟 간식 5개를 먹으면 아기냥이가 따라와요</li>
       <li>💥 다른 기차 몸에 머리를 박으면 끝!</li>
-      <li>🤖 표시는 컴퓨터 냥이예요</li>
+      <li>🤖 표시는 컴퓨터 냥이, 노란 이름은 다른 사람이에요</li>
     </ul>
     <button type="button" class="go" id="go">출발!</button>
   </section>
@@ -59,6 +60,7 @@
 
   <script src="../../assets/ranking-config.js"></script>
   <script src="../../assets/ranking.js"></script>
-  <script src="cattrain.js"></script>
+  <script src="server-config.js"></script>
+  <script type="module" src="cattrain.js"></script>
 </body>
 </html>
