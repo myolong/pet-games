@@ -19,31 +19,7 @@ body.cattrain {
   touch-action: none;
 }
 
-.dash {
-  position: fixed;
-  right: calc(16px + env(safe-area-inset-right));
-  bottom: calc(20px + env(safe-area-inset-bottom));
-  width: 92px;
-  height: 92px;
-  border-radius: 50%;
-  border: 4px solid #fff;
-  background: rgba(255, 138, 42, 0.92);
-  color: #fff;
-  font: inherit;
-  font-size: 15px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  line-height: 1.1;
-  text-shadow: 0 1px 2px #b4500a;
-  touch-action: none;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
 
-.dash span { font-size: 26px; }
-.dash.on { background: #e36d0e; transform: scale(0.94); }
-.dash[hidden] { display: none; }
 
 /* 시작 화면 */
 .start {
