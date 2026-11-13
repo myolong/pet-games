@@ -1,7 +1,7 @@
 // 냥이 꼬리기차 같이 하기: 놀이터(방) 하나의 진행. 서버 종류(Fly.io Node, Cloudflare)와 상관없이 같이 쓴다.
 // 사람이 있는 동안 1초에 20번 게임을 진행하고, 각 사람에게 그 사람 화면 근처의 모습만 보낸다.
 import {
-  createWorld, step, addPlayer, removeTrain, ranked,
+  createWorld, step, addPlayer, removeTrain, ranked, setEmote, emoteNow,
   FUR_KEYS, PICK_FURS, SCARVES, WORLD, SPECIAL_FURS, LEADER_FURS, HAT_KEYS, TAIL_KEYS, FACE_KEYS,
 } from '../../games/cattrain/sim.js';
 
@@ -134,6 +134,9 @@ export class Room {
       if (!c.train || typeof m.a !== 'number' || !isFinite(m.a)) return;
       c.train.input.a = m.a;
       c.train.input.dash = !!m.d;
+    } else if (m.t === 'emote') {
+      // 냥! 말풍선: 번호만 받는다 (2초에 한 번은 sim.js가 막는다)
+      if (c.train) setEmote(w, c.train, Number(m.e));
     } else if (m.t === 'ping') {
       // 화면이 서버까지 걸리는 시간을 재도록 그대로 돌려준다.
       this.send(c, { t: 'pong', c: m.c, g: this.gapMax || 0 });
@@ -239,7 +242,7 @@ export class Room {
         for (const k of t.kids) kids += FUR_KEYS.indexOf(k);
         const flags = (t.bot ? 1 : 0) | (t.dashNow ? 2 : 0) | (t.invul > 0 ? 4 : 0) | (t === top ? 8 : 0);
         tr.push([t.id, Math.round(t.x * 10) / 10, Math.round(t.y * 10) / 10, Math.round(t.a * 100), LEADER_FURS.indexOf(t.fur), SCARVES.indexOf(t.scarf), flags, t.name, kids, segs,
-          HAT_KEYS.indexOf(t.hat) + 1, TAIL_KEYS.indexOf(t.tail) + 1, FACE_KEYS.indexOf(t.face) + 1]);
+          HAT_KEYS.indexOf(t.hat) + 1, TAIL_KEYS.indexOf(t.tail) + 1, FACE_KEYS.indexOf(t.face) + 1, emoteNow(w, t) + 1]);
       }
       const f = withFish ? [] : null;
       if (f) for (const o of w.fish) if (o.v !== -2 && o.x > L && o.x < R && o.y > T && o.y < B) f.push(Math.round(o.x), Math.round(o.y), o.v, o.c);

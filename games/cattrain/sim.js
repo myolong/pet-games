@@ -28,6 +28,17 @@ export const LEADER_FURS = FUR_KEYS.concat(SPECIAL_FURS);   // 대장 냥이 털
 export const HAT_KEYS = ['santa', 'antler', 'party', 'jobawi', 'gat', 'sakura', 'cowboy', 'beret', 'sombrero'];
 export const TAIL_KEYS = ['lights', 'snow', 'firework', 'saekdong', 'petals', 'stars', 'zap', 'bubbles', 'notes'];
 export const FACE_KEYS = ['angry', 'cry', 'grumpy'];
+// 냥! 말풍선: 번호만 주고받는다 (글자는 화면 쪽에서 정함). 2초에 한 번, 2.5초 동안 보인다.
+export const EMOTE_COUNT = 6;
+export const EMOTE_SHOW = 2.5;
+export const EMOTE_GAP = 2;
+export function setEmote(w, t, e) {
+  if (!t || !t.alive || !(e >= 0 && e < EMOTE_COUNT) || e !== Math.floor(e)) return false;
+  if (w.now < (t.emoteNext || 0)) return false;
+  t.emote = e; t.emoteUntil = w.now + EMOTE_SHOW; t.emoteNext = w.now + EMOTE_GAP;
+  return true;
+}
+export function emoteNow(w, t) { return t.emoteUntil > w.now ? t.emote : -1; }
 export const SCARVES = ['#ff5a5a', '#5a8dee', '#9b6be0', '#2fae8f', '#e05a9b', '#e0b33a', '#6c7a89', '#3aa0c8'];
 export const FISH_COLORS = ['#7ec8e3', '#f7b2c4', '#a8e6a1', '#b9a7f5', '#ffcf3f'];
 export const BOT_NAMES = ['까망이', '회색번개', '콩떡', '삼색이', '치즈볼', '두부', '호떡', '모찌', '깜냥', '보리', '라떼', '흰둥이', '꼬미', '찹쌀', '감자', '누룽지', '인절미', '팥떡', '고등어', '버터', '쿠키', '밤톨', '단추', '구름'];
@@ -96,6 +107,7 @@ function makeTrain(w, opts) {
     hat: HAT_KEYS.includes(opts.hat) ? opts.hat : '', tail: TAIL_KEYS.includes(opts.tail) ? opts.tail : '',
     face: FACE_KEYS.includes(opts.face) ? opts.face : '',
     kids: [], trail: [], segs: [], gauge: 0, alive: true,
+    emote: -1, emoteUntil: 0, emoteNext: 0,
     invul: 2, dashing: false, dashNow: false, dropT: 0, think: 0, goal: null, wanderT: 0,
     aggr: opts.aggr || 0, sloppy: opts.sloppy || 0, respawn: 0, maxLen: 0, born: w.now,
     box: { x0: 0, y0: 0, x1: 0, y1: 0 },
@@ -373,6 +385,7 @@ function eat(w, t) {
       if (f.v === -3) {
         for (let n = 0; n < BASKET_KIDS; n++) if (t.isPlayer || t.kids.length < BOT_MAX_LEN) addKid(w, t);
         w.events.push({ type: 'basketGot', train: t, n: BASKET_KIDS });
+        if (t.bot && Math.random() < 0.7) setEmote(w, t, 1);
         continue;
       }
       if (f.v < 0) {
@@ -389,6 +402,7 @@ function eat(w, t) {
           k.shy = t.id; k.shyUntil = w.now + 2;
         }
         w.events.push({ type: 'poison', train: t, n: n, onion: onion });
+        if (t.bot && Math.random() < 0.4) setEmote(w, t, 4);
         continue;
       }
       t.gauge += f.v;
