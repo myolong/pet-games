@@ -29,7 +29,7 @@ export const HAT_KEYS = ['santa', 'antler', 'party', 'jobawi', 'gat', 'sakura', 
 export const TAIL_KEYS = ['lights', 'snow', 'firework', 'saekdong', 'petals', 'stars', 'zap', 'bubbles', 'notes'];
 export const FACE_KEYS = ['angry', 'cry', 'grumpy'];
 // 냥! 말풍선: 번호만 주고받는다 (글자는 화면 쪽에서 정함). 2초에 한 번, 2.5초 동안 보인다.
-export const EMOTE_COUNT = 6;
+export const EMOTE_COUNT = 7;
 export const EMOTE_SHOW = 2.5;
 export const EMOTE_GAP = 2;
 export function setEmote(w, t, e) {
@@ -385,7 +385,7 @@ function eat(w, t) {
       if (f.v === -3) {
         for (let n = 0; n < BASKET_KIDS; n++) if (t.isPlayer || t.kids.length < BOT_MAX_LEN) addKid(w, t);
         w.events.push({ type: 'basketGot', train: t, n: BASKET_KIDS });
-        if (t.bot && Math.random() < 0.7) setEmote(w, t, 1);
+        if (t.bot && Math.random() < 0.7) setEmote(w, t, 5);
         continue;
       }
       if (f.v < 0) {
@@ -402,7 +402,7 @@ function eat(w, t) {
           k.shy = t.id; k.shyUntil = w.now + 2;
         }
         w.events.push({ type: 'poison', train: t, n: n, onion: onion });
-        if (t.bot && Math.random() < 0.4) setEmote(w, t, 4);
+        if (t.bot && Math.random() < 0.4) setEmote(w, t, 6);
         continue;
       }
       t.gauge += f.v;
