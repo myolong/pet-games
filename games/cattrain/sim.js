@@ -6,10 +6,13 @@ export const STEP = 4;              // 꼬리 경로를 저장하는 간격
 export const SPEED = 150;           // 기본 속도(초당)
 export const DASH = 1.8;            // 달리기 배율
 export const TURN = 4.2;            // 초당 회전 각도(라디안)
-export const GAUGE_MAX = 5;         // 간식 몇 개에 아기냥 한 마리
+export const GAUGE_MAX = 5;         // (물고기를 뺀 뒤로 쓰지 않음)
 export const START_LEN = 3;
-export const FISH_COUNT = 1350;
-export const WILD_COUNT = 180;      // 놀이터를 떠도는 길 잃은 아기냥 수
+export const FISH_COUNT = 0;        // 물고기 간식은 뺐다. 아기냥은 길 잃은 냥이와 바구니로만 모은다
+export const BASKET_KIDS = 8;       // 바구니 하나에 든 아기냥 수
+export const BASKET_EVERY = 30;     // 몇 초마다 새 바구니가 나오나
+export const BASKET_MAX = 2;        // 놀이터에 동시에 있을 수 있는 바구니 수
+export const WILD_COUNT = 330;      // 놀이터를 떠도는 길 잃은 아기냥 수
 export const POISON_COUNT = 135;    // 먹으면 아기냥이 도망가는 독버섯 수
 export const POISON_LOSS = 2;       // 독버섯 하나에 도망가는 아기냥 수
 export const ONION_COUNT = 24;      // 먹으면 아기냥 절반이 도망가는 양파 수 (드물다)
@@ -75,7 +78,7 @@ export function ensureTrail(t) {
 export function createWorld() {
   const w = {
     trains: [], fish: [], kittens: [], now: 0, nextId: 1, events: [],
-    usedNames: new Set(),
+    usedNames: new Set(), nextBasket: 8,
   };
   for (let i = 0; i < FISH_COUNT; i++) spawnFish(w);
   for (let i = 0; i < POISON_COUNT; i++) spawnPoison(w);
@@ -117,6 +120,13 @@ function spawnPoison(w, onion) {
   const f = { x: p.x, y: p.y, v: onion ? -2 : -1, c: onion ? 6 : 5 };
   if (onion) { f.vx = 0; f.vy = 0; f.turnT = 0; }
   w.fish.push(f);
+}
+
+// 아기냥 바구니(v = -3): 먼저 닿은 기차가 아기냥 여러 마리를 한꺼번에 데려간다.
+function spawnBasket(w) {
+  const p = safeSpot(w, 200, 0);
+  w.fish.push({ x: p.x, y: p.y, v: -3, c: 7 });
+  w.events.push({ type: 'basket' });
 }
 
 // 양파는 이리저리 굴러다녀서 피하기 어렵다.
@@ -264,6 +274,10 @@ function botThink(w, b) {
     }
   }
   if (!goal) {
+    let bd = 900 * 900;
+    for (const f of w.fish) { if (f.v !== -3) continue; const d = dist2(b.x, b.y, f.x, f.y); if (d < bd) { bd = d; goal = f; } }
+  }
+  if (!goal) {
     let bd = 420 * 420;
     for (const k of w.kittens) { const d = dist2(b.x, b.y, k.x, k.y); if (d < bd) { bd = d; goal = k; } }
   }
@@ -295,7 +309,7 @@ function botThink(w, b) {
   // 앞에 독버섯이 있으면 살짝 비켜 간다 (덜렁이 봇은 가끔 그냥 먹는다)
   if (Math.random() > b.sloppy) {
     for (const f of w.fish) {
-      if (f.v >= 0) continue;
+      if (f.v >= 0 || f.v === -3) continue;
       const dx = f.x - b.x, dy = f.y - b.y;
       if (dx * dx + dy * dy > 90 * 90) continue;
       const ang = Math.atan2(dy, dx), diff = angleTo(want, ang);
@@ -303,7 +317,7 @@ function botThink(w, b) {
     }
   }
   b.ta = want;
-  b.dashing = hunting && b.gauge > 1;
+  b.dashing = hunting && b.kids.length > 8;
 }
 
 // ───── 한 단계 진행 ─────
@@ -353,9 +367,14 @@ function eat(w, t) {
   const fish = w.fish, kittens = w.kittens;
   for (let i = fish.length - 1; i >= 0; i--) {
     const f = fish[i];
-    const fr = r + (f.v === -2 ? 13 : 8);
+    const fr = r + (f.v === -2 ? 13 : f.v === -3 ? 18 : 8);
     if (dist2(t.x, t.y, f.x, f.y) < fr * fr) {
       fish.splice(i, 1);
+      if (f.v === -3) {
+        for (let n = 0; n < BASKET_KIDS; n++) if (t.isPlayer || t.kids.length < BOT_MAX_LEN) addKid(w, t);
+        w.events.push({ type: 'basketGot', train: t, n: BASKET_KIDS });
+        continue;
+      }
       if (f.v < 0) {
         // 독버섯: 꼬리 쪽 아기냥 2마리, 양파: 아기냥 절반이 놀라서 도망간다
         const onion = f.v === -2;
@@ -478,9 +497,13 @@ export function step(w, dt) {
   for (const k of kittens) if (k.wild) wild++;
   if (wild < WILD_COUNT && Math.random() < dt * 9) spawnWild(w);
   rollOnions(w, dt);
-  let poison = 0, onion = 0;
-  for (const f of w.fish) { if (f.v === -1) poison++; else if (f.v === -2) onion++; }
-  while (w.fish.length - poison - onion < FISH_COUNT) spawnFish(w);
+  let poison = 0, onion = 0, baskets = 0;
+  for (const f of w.fish) { if (f.v === -1) poison++; else if (f.v === -2) onion++; else if (f.v === -3) baskets++; }
+  while (w.fish.length - poison - onion - baskets < FISH_COUNT) spawnFish(w);
+  if (w.now >= w.nextBasket) {
+    w.nextBasket = w.now + BASKET_EVERY;
+    if (baskets < BASKET_MAX) spawnBasket(w);
+  }
   if (poison < POISON_COUNT && Math.random() < dt * 1.5) spawnPoison(w);
   if (onion < ONION_COUNT && Math.random() < dt * 0.3) spawnPoison(w, true);
   for (const t of w.trains) if (t.alive && t.kids.length > t.maxLen) t.maxLen = t.kids.length;
