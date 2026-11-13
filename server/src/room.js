@@ -2,7 +2,7 @@
 // 사람이 있는 동안 1초에 20번 게임을 진행하고, 각 사람에게 그 사람 화면 근처의 모습만 보낸다.
 import {
   createWorld, step, addPlayer, removeTrain, ranked,
-  FUR_KEYS, PICK_FURS, SCARVES, WORLD,
+  FUR_KEYS, PICK_FURS, SCARVES, WORLD, SPECIAL_FURS, LEADER_FURS, HAT_KEYS, TAIL_KEYS,
 } from '../../games/cattrain/sim.js';
 
 const TICK_MS = 50;
@@ -98,7 +98,9 @@ export class Room {
     const w = this.world;
     if (m.t === 'join') {
       if (c.train) return;
-      const fur = PICK_FURS.includes(m.fur) ? m.fur : 'orange';
+      const fur = PICK_FURS.includes(m.fur) || SPECIAL_FURS.includes(m.fur) ? m.fur : 'orange';
+      const hat = HAT_KEYS.includes(m.hat) ? m.hat : '';
+      const tail = TAIL_KEYS.includes(m.tail) ? m.tail : '';
       c.name = cleanName(m.name);
       let kids;
       if (m.cont && !c.continued && c.lastKids && c.lastKids.length >= 2) {
@@ -110,7 +112,7 @@ export class Room {
         c.runLived = 0;
       }
       c.lastKids = null;
-      c.train = addPlayer(w, { name: c.name, fur: fur, kids: kids });
+      c.train = addPlayer(w, { name: c.name, fur: fur, kids: kids, hat: hat, tail: tail });
       c.train.conn = c;
       c.joined = true;
       c.joinedAt = w.now;
@@ -214,7 +216,8 @@ export class Room {
         let kids = '';
         for (const k of t.kids) kids += FUR_KEYS.indexOf(k);
         const flags = (t.bot ? 1 : 0) | (t.dashNow ? 2 : 0) | (t.invul > 0 ? 4 : 0) | (t === top ? 8 : 0);
-        tr.push([t.id, Math.round(t.x * 10) / 10, Math.round(t.y * 10) / 10, Math.round(t.a * 100), FUR_KEYS.indexOf(t.fur), SCARVES.indexOf(t.scarf), flags, t.name, kids, segs]);
+        tr.push([t.id, Math.round(t.x * 10) / 10, Math.round(t.y * 10) / 10, Math.round(t.a * 100), LEADER_FURS.indexOf(t.fur), SCARVES.indexOf(t.scarf), flags, t.name, kids, segs,
+          HAT_KEYS.indexOf(t.hat) + 1, TAIL_KEYS.indexOf(t.tail) + 1]);
       }
       const f = withFish ? [] : null;
       if (f) for (const o of w.fish) if (o.v !== -2 && o.x > L && o.x < R && o.y > T && o.y < B) f.push(Math.round(o.x), Math.round(o.y), o.v, o.c);

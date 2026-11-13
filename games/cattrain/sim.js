@@ -19,6 +19,11 @@ export const MIN_BOTS = 3;
 
 export const FUR_KEYS = ['orange', 'gray', 'white', 'black', 'calico', 'cream'];
 export const PICK_FURS = ['orange', 'gray', 'white', 'black', 'calico'];
+// 꾸미기 (광고 보고 여는 것). 순서를 바꾸면 서버와 화면의 번호가 어긋나니 뒤에만 덧붙일 것.
+export const SPECIAL_FURS = ['rudolph', 'snow', 'gold', 'sakura'];
+export const LEADER_FURS = FUR_KEYS.concat(SPECIAL_FURS);   // 대장 냥이 털색 번호표
+export const HAT_KEYS = ['santa', 'antler', 'party', 'jobawi', 'gat', 'sakura', 'cowboy', 'beret', 'sombrero'];
+export const TAIL_KEYS = ['lights', 'snow', 'firework', 'saekdong', 'petals', 'stars'];
 export const SCARVES = ['#ff5a5a', '#5a8dee', '#9b6be0', '#2fae8f', '#e05a9b', '#e0b33a', '#6c7a89', '#3aa0c8'];
 export const FISH_COLORS = ['#7ec8e3', '#f7b2c4', '#a8e6a1', '#b9a7f5', '#ffcf3f'];
 export const BOT_NAMES = ['까망이', '회색번개', '콩떡', '삼색이', '치즈볼', '두부', '호떡', '모찌', '깜냥', '보리', '라떼', '흰둥이', '꼬미', '찹쌀', '감자', '누룽지', '인절미', '팥떡', '고등어', '버터', '쿠키', '밤톨', '단추', '구름'];
@@ -84,6 +89,7 @@ function makeTrain(w, opts) {
   const t = {
     id: w.nextId++, name: opts.name, fur: opts.fur, isPlayer: !!opts.isPlayer, bot: !opts.isPlayer,
     scarf: opts.scarf, x: opts.x, y: opts.y, a: a, ta: a,
+    hat: HAT_KEYS.includes(opts.hat) ? opts.hat : '', tail: TAIL_KEYS.includes(opts.tail) ? opts.tail : '',
     kids: [], trail: [], segs: [], gauge: 0, alive: true,
     invul: 2, dashing: false, dashNow: false, dropT: 0, think: 0, goal: null, wanderT: 0,
     aggr: opts.aggr || 0, sloppy: opts.sloppy || 0, respawn: 0, maxLen: 0, born: w.now,
@@ -172,6 +178,9 @@ function newBot(w, name) {
     name: name || botName(w), fur: FUR_KEYS[randInt(FUR_KEYS.length)], scarf: SCARVES[1 + randInt(SCARVES.length - 1)],
     x: p.x, y: p.y, len: Math.floor(rand(START_LEN, 12)), aggr: rand(0, 0.55), sloppy: rand(0.05, 0.3),
     a: Math.atan2(WORLD / 2 - p.y, WORLD / 2 - p.x),
+    // 컴퓨터 냥이도 가끔 꾸미고 나온다
+    hat: Math.random() < 0.3 ? HAT_KEYS[randInt(HAT_KEYS.length)] : '',
+    tail: Math.random() < 0.15 ? TAIL_KEYS[randInt(TAIL_KEYS.length)] : '',
   });
 }
 
@@ -196,6 +205,7 @@ export function addPlayer(w, opts) {
   const len = opts.kids ? opts.kids.length : START_LEN;
   const t = makeTrain(w, {
     name: opts.name, fur: opts.fur, scarf: SCARVES[0], isPlayer: true, x: p.x, y: p.y, len: len, kids: opts.kids,
+    hat: opts.hat, tail: opts.tail,
     a: Math.atan2(WORLD / 2 - p.y, WORLD / 2 - p.x),
   });
   t.input = { a: t.a, dash: false };
