@@ -2,15 +2,26 @@
 // 한국에서 가까운 곳에 서버 하나를 두고, 놀이터(방) 다섯 개를 이 안에서 돌린다. 아무도 없으면 Fly.io가 서버를 꺼 둔다.
 import http from 'node:http';
 import { WebSocketServer } from 'ws';
-import { Room, roomNumber, ALLOWED_ORIGINS } from './room.js';
+import { Room, roomNumber, roomKey, ALLOWED_ORIGINS, MAX_FRIEND_ROOMS, FRIEND_IDLE_MS } from './room.js';
 import { addBytes, overBudget, usage } from './budget.js';
 
 const PORT = Number(process.env.PORT || 8080);
 const REGION = process.env.FLY_REGION || 'local';
 const rooms = new Map();
-function getRoom(n) {
-  if (!rooms.has(n)) rooms.set(n, new Room());
-  return rooms.get(n);
+let friendRooms = 0;
+// 공개 방(1~5)은 계속 두고, 친구 방('f:코드')은 다 나가면 지운다. 친구 방이 너무 많으면 null.
+function getRoom(key) {
+  if (rooms.has(key)) return rooms.get(key);
+  let room;
+  if (typeof key === 'string') {
+    if (friendRooms >= MAX_FRIEND_ROOMS) return null;
+    friendRooms++;
+    room = new Room({ idleMs: FRIEND_IDLE_MS, onIdle: () => { if (rooms.get(key) === room) { rooms.delete(key); friendRooms--; } } });
+  } else {
+    room = new Room();
+  }
+  rooms.set(key, room);
+  return room;
 }
 
 const server = http.createServer((req, res) => {
@@ -19,7 +30,7 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
     res.end('cattrain ok');
   } else if (url.pathname === '/stats') {
-    const st = Object.assign({ server: REGION }, getRoom(roomNumber(url.searchParams.get('room'))).stats(), { usage: usage() });
+    const st = Object.assign({ server: REGION, friendRooms: friendRooms }, getRoom(roomNumber(url.searchParams.get('room'))).stats(), { usage: usage() });
     res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*' });
     res.end(JSON.stringify(st, null, 1));
   } else {
@@ -48,7 +59,13 @@ server.on('upgrade', (req, socket, head) => {
     }
     const rawSend = ws.send.bind(ws);
     ws.send = (s) => { addBytes(s.length); rawSend(s); };
-    const room = getRoom(roomNumber(url.searchParams.get('room')));
+    const room = getRoom(roomKey(url.searchParams.get('room')));
+    if (!room) {
+      // 친구 방이 너무 많이 열려 있다: 화면은 공개 놀이터로 간다
+      ws.send(JSON.stringify({ t: 'full' }));
+      ws.close(1000, 'full');
+      return;
+    }
     const c = room.connect(ws, { edge: 'fly', server: REGION });
     if (!c) return;
     ws.on('message', (data) => room.onMessage(c, String(data)));
