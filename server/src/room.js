@@ -11,7 +11,7 @@ export const MAX_ROOMS = 5;
 const IDLE_STOP_MS = 60000;    // 아무도 없으면 1분 뒤 쉰다
 const MAX_MSGS_PER_SEC = 30;
 
-export const ALLOWED_ORIGINS = [/^https:\/\/myolong\.github\.io$/, /^https:\/\/aywls931128-source\.github\.io$/, /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/];
+export const ALLOWED_ORIGINS = [/^https:\/\/myolong\.github\.io$/, /^https:\/\/aywls931128-source\.github\.io$/, /^https:\/\/(www\.)?nyangtrain\.com$/, /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/];
 
 const BAD_WORDS = [
   '시발', '씨발', '씨빨', '시바', 'ㅅㅂ', 'ㅆㅂ', '병신', 'ㅂㅅ', '븅신', '개새', '개색', '새끼', 'ㅅㄲ',
