@@ -163,6 +163,8 @@ function spawnWild(w) {
   w.kittens.push({ x: p.x, y: p.y, fur: FUR_KEYS[randInt(FUR_KEYS.length)], vx: 0, vy: 0, wild: true, born: w.now, a: rand(0, 6.28), t: rand(0, 3) });
 }
 
+export const DROP_LIFE = 5;     // 떨어진 아기냥이가 남아 있는 시간(초)
+export const DROP_FADE = 3.5;   // 이 시간이 지나면 깜빡이며 사라질 준비
 function dropKitten(w, x, y, fur, burst) {
   const ang = rand(0, Math.PI * 2), sp = burst ? rand(40, 140) : rand(10, 40);
   w.kittens.push({ x: x, y: y, fur: fur, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, wild: false, born: w.now, a: ang, t: 0 });
@@ -426,7 +428,8 @@ function crash(w, t, by) {
   if (!t.alive) return;
   t.alive = false;
   t.deadAt = w.now;
-  for (let i = 0; i < t.segs.length; i++) dropKitten(w, t.segs[i].x, t.segs[i].y, t.kids[i], true);
+  // 부딪히면 꼬리 아기냥이의 절반(한 칸 걸러 하나)만 떨어진다.
+  for (let i = 0; i < t.segs.length; i += 2) dropKitten(w, t.segs[i].x, t.segs[i].y, t.kids[i], true);
   if (t.bot) t.respawn = w.now + rand(2, 5);
   // 죽은 순간의 순위 (살아 있는 기차 + 나)
   let rank = 1, count = 1;
@@ -498,7 +501,7 @@ export function step(w, dt) {
       if (k.t > 2.5) { k.t = 0; const a = rand(0, 6.28), s = rand(0, 22); k.vx = Math.cos(a) * s; k.vy = Math.sin(a) * s; if (s > 0) k.a = a; }
     } else {
       k.vx *= Math.pow(0.12, dt); k.vy *= Math.pow(0.12, dt);
-      if (w.now - k.born > 30) { kittens.splice(i, 1); continue; }
+      if (w.now - k.born > DROP_LIFE) { kittens.splice(i, 1); continue; }
     }
     k.x = clamp(k.x + k.vx * dt, 20, WORLD - 20);
     k.y = clamp(k.y + k.vy * dt, 20, WORLD - 20);
