@@ -31,9 +31,21 @@ export function roomNumber(v) {
   return Math.min(MAX_ROOMS, Math.max(1, parseInt(v || '1', 10) || 1));
 }
 
+// 친구 초대 방: 주소의 room 값이 영문 소문자·숫자 5~8자이면 그 이름의 친구 방으로 보낸다.
+export const MAX_FRIEND_ROOMS = 30;  // 동시에 열 수 있는 친구 방 수 (서버 부담 상한)
+export const FRIEND_IDLE_MS = 15000; // 친구 방은 다 나가면 15초 뒤 지운다
+export function roomKey(v) {
+  const s = String(v || '');
+  if (/^[a-z0-9]{5,8}$/.test(s) && !/^\d+$/.test(s)) return 'f:' + s;
+  return roomNumber(s);
+}
+
 // ws: send(문자열), close(code, reason) 가 있는 연결
 export class Room {
-  constructor() {
+  // opts.idleMs: 아무도 없을 때 쉬기까지 기다리는 시간, opts.onIdle: 쉰 뒤 부를 함수(친구 방 지우기)
+  constructor(opts) {
+    this.idleMs = (opts && opts.idleMs) || IDLE_STOP_MS;
+    this.onIdle = (opts && opts.onIdle) || null;
     this.world = null;
     this.conns = new Set();
     this.timer = null;
@@ -142,7 +154,7 @@ export class Room {
     }
     this.prevTick = nowMs;
     if (this.conns.size === 0) {
-      if (nowMs - this.emptySince > IDLE_STOP_MS) this.stop();
+      if (nowMs - this.emptySince > this.idleMs) { this.stop(); if (this.onIdle) this.onIdle(); }
       this.last = nowMs;
       return;
     }
