@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const FILE = process.env.USAGE_FILE || '/data/usage.json';
-const BUDGET_USD = Number(process.env.BUDGET_USD || 2.0);
+const BUDGET_USD = Number(process.env.BUDGET_USD || 7.0);
 const PER_HOUR = 0.0030;
 const PER_GB = 0.04;
 const FIXED = 0.15;          // 기록 저장 공간 (1GB)
