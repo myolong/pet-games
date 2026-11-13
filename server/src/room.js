@@ -175,6 +175,10 @@ export class Room {
   handleEvents() {
     const w = this.world;
     for (const ev of w.events) {
+      if (ev.type === 'basket') {
+        for (const c of this.conns) if (c.joined) this.send(c, { t: 'basket' });
+        continue;
+      }
       if (ev.type === 'poison' && ev.train.isPlayer && ev.train.conn) {
         this.send(ev.train.conn, { t: 'ouch', n: ev.n, onion: ev.onion ? 1 : 0 });
         continue;
@@ -216,6 +220,11 @@ export class Room {
       mm = [];
       for (const t of w.trains) if (t.alive) mm.push(Math.round(t.x), Math.round(t.y), t.kids.length, t.id);
     }
+    let bk = null;
+    if (withMap) {
+      bk = [];
+      for (const o of w.fish) if (o.v === -3) bk.push(Math.round(o.x), Math.round(o.y));
+    }
     for (const c of this.conns) {
       if (!c.joined) continue;
       const me = c.train;
@@ -247,7 +256,7 @@ export class Room {
       if (k) msg.k = k;
       msg.o = on;
       if (me) msg.my = [order.indexOf(me) + 1, me.kids.length, Math.floor(me.gauge)];
-      if (mm) msg.mm = mm;
+      if (mm) { msg.mm = mm; msg.bk = bk; }
       msg.hc = humansNow;
       this.send(c, msg);
     }
