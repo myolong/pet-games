@@ -1,7 +1,7 @@
 // 냥이 꼬리기차 같이 하기: 놀이터(방) 하나의 진행. 서버 종류(Fly.io Node, Cloudflare)와 상관없이 같이 쓴다.
 // 사람이 있는 동안 1초에 20번 게임을 진행하고, 각 사람에게 그 사람 화면 근처의 모습만 보낸다.
 import {
-  createWorld, step, addPlayer, removeTrain, ranked, setEmote, emoteNow,
+  createWorld, step, addPlayer, removeTrain, ranked, setEmote, emoteNow, DROP_FADE,
   FUR_KEYS, PICK_FURS, SCARVES, WORLD, SPECIAL_FURS, LEADER_FURS, HAT_KEYS, TAIL_KEYS, FACE_KEYS,
 } from '../../games/cattrain/sim.js';
 
@@ -252,7 +252,7 @@ export class Room {
       const k = withKits ? [] : null;
       if (k) for (const o of w.kittens) {
         if (o.x < L || o.x > R || o.y < T || o.y > B) continue;
-        k.push(Math.round(o.x), Math.round(o.y), FUR_KEYS.indexOf(o.fur), o.wild ? 1 : (w.now - o.born > 26 ? 2 : 0), Math.round(o.a * 100));
+        k.push(Math.round(o.x), Math.round(o.y), FUR_KEYS.indexOf(o.fur), o.wild ? 1 : (w.now - o.born > DROP_FADE ? 2 : 0), Math.round(o.a * 100));
       }
       const msg = { t: 's', st: Math.round(w.now * 1000), me: me ? me.id : 0, tr: tr, lb: lb };
       if (f) msg.f = f;
