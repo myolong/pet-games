@@ -15,9 +15,3 @@ GitHub Pages(main 브랜치, 루트 폴더)로 공개합니다.
 - `server/src/index.js`: 예전 Cloudflare Workers 서버. 한국에서 무료 요금제로 접속하면 미국을 거쳐 왕복 0.5초 이상 걸려서 지금은 안 쓴다.
 - 서버 주소는 `games/cattrain/server-config.js`. 비우거나 서버가 안 되면 컴퓨터 냥이와 혼자 놀기로 바뀐다.
 - 내 컴퓨터에서 시험: `cd server && npm install && npm run dev`
-
-## 냥이 털실 굴리기 같이 하기 서버
-
-- `games/yarn/sim.js`: 게임 규칙 (화면과 서버가 같이 씀)
-- `server-yarn/src/room.js`, `server-yarn/src/node.js`, `server-yarn/Dockerfile`, `server-yarn/fly.toml`: 꼬리기차와 따로 도는 Fly.io 도쿄 서버(`nyangnyang-yarn`). 요금 상한도 따로 월 2달러(`BUDGET_USD`). main에 병합되면 GitHub Actions(`yarn-fly.yml`)가 자동 배포한다. 상태 확인: `https://nyangnyang-yarn.fly.dev/stats`
-- 서버 주소는 `games/yarn/server-config.js`.
