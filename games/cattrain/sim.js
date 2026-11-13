@@ -163,8 +163,8 @@ function spawnWild(w) {
   w.kittens.push({ x: p.x, y: p.y, fur: FUR_KEYS[randInt(FUR_KEYS.length)], vx: 0, vy: 0, wild: true, born: w.now, a: rand(0, 6.28), t: rand(0, 3) });
 }
 
-export const DROP_LIFE = 15;    // 떨어진 아기냥이가 남아 있는 시간(초)
-export const DROP_FADE = 11;    // 이 시간이 지나면 깜빡이며 사라질 준비
+export const DROP_LIFE = 5;     // 떨어진 아기냥이가 남아 있는 시간(초)
+export const DROP_FADE = 3.5;   // 이 시간이 지나면 깜빡이며 사라질 준비
 function dropKitten(w, x, y, fur, burst) {
   const ang = rand(0, Math.PI * 2), sp = burst ? rand(40, 140) : rand(10, 40);
   w.kittens.push({ x: x, y: y, fur: fur, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, wild: false, born: w.now, a: ang, t: 0 });
