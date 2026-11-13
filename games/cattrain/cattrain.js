@@ -561,10 +561,26 @@ function drawFish(f) {
   ctx.restore();
 }
 
+// 기차마다 목걸이 색이 달라서, 줄이 길게 엉켜도 어느 대장 냥이의 아기냥인지 알 수 있다
+const TAIL_COLORS = ['#ff4d4d', '#3b82f6', '#a855f7', '#10b981', '#f59e0b', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1', '#14b8a6', '#e11d48'];
+function tailColor(t) { return TAIL_COLORS[(t.id * 7) % TAIL_COLORS.length]; }
+
+// 목에 두르는 목걸이 (진행 방향 a, 반지름 r)
+function drawCollar(x, y, r, a, color) {
+  ctx.save();
+  ctx.translate(x, y); ctx.rotate(a + Math.PI / 2);
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.ellipse(0, r * 0.85, r * 0.78, r * 0.24, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#ffd23f';
+  ctx.beginPath(); ctx.arc(0, r * 1.05, r * 0.14, 0, 7); ctx.fill();
+  ctx.restore();
+}
+
 function drawTrain(t) {
   const r = headR(t), kr = r * 0.74;
   if (t.invul && Math.floor(clock * 8) % 2 === 0) ctx.globalAlpha = 0.45;
   const segs = t.segs;
+  const tc = tailColor(t);
   if (segs.length) {
     ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = r * 0.45; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     ctx.beginPath(); ctx.moveTo(t.x, t.y);
@@ -574,11 +590,12 @@ function drawTrain(t) {
   for (let i = segs.length - 1; i >= 0; i--) {
     const s = segs[i];
     const face = (i + Math.floor(clock * 0.7)) % 4 === 0 ? 'happy' : 'normal';
+    drawCollar(s.x, s.y, kr, s.a, tc);
     drawSprite((sprites[t.kids[i]] || sprites.orange)[face], s.x, s.y, kr, s.a);
   }
   ctx.save();
   ctx.translate(t.x, t.y); ctx.rotate(t.a + Math.PI / 2);
-  ctx.fillStyle = t.scarf;
+  ctx.fillStyle = tc;
   ctx.beginPath(); ctx.ellipse(0, r * 0.85, r * 0.78, r * 0.24, 0, 0, 7); ctx.fill();
   ctx.restore();
   drawSprite(sprites[t.fur].normal, t.x, t.y, r, t.a);
