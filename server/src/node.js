@@ -4,6 +4,7 @@ import http from 'node:http';
 import { WebSocketServer } from 'ws';
 import { Room, roomNumber, roomKey, ALLOWED_ORIGINS, MAX_FRIEND_ROOMS, FRIEND_IDLE_MS } from './room.js';
 import { addBytes, overBudget, usage } from './budget.js';
+import { recordVisit, keyOk, visitReport } from './visits.js';
 
 const PORT = Number(process.env.PORT || 8080);
 const REGION = process.env.FLY_REGION || 'local';
@@ -29,6 +30,24 @@ const server = http.createServer((req, res) => {
   if (url.pathname === '/') {
     res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8' });
     res.end('cattrain ok');
+  } else if (url.pathname === '/hit') {
+    // 사이트를 연 브라우저 하나를 하루 한 번 센다 (운영자 기기 제외)
+    const origin = req.headers.origin;
+    const okOrigin = origin && ALLOWED_ORIGINS.some((re) => re.test(origin));
+    if (okOrigin) recordVisit({ vid: url.searchParams.get('v'), owner: url.searchParams.get('o') === '1', played: false, ua: req.headers['user-agent'] });
+    res.writeHead(204, okOrigin ? { 'access-control-allow-origin': origin, 'cache-control': 'no-store' } : {});
+    res.end();
+  } else if (url.pathname === '/visits') {
+    // 하루 접속자 수: 운영자 열쇠가 있어야 보인다
+    const origin = req.headers.origin;
+    const cors = origin && ALLOWED_ORIGINS.some((re) => re.test(origin)) ? { 'access-control-allow-origin': origin } : {};
+    if (!keyOk(url.searchParams.get('k'))) {
+      res.writeHead(403, Object.assign({ 'content-type': 'text/plain; charset=utf-8' }, cors));
+      res.end('forbidden');
+      return;
+    }
+    res.writeHead(200, Object.assign({ 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }, cors));
+    res.end(JSON.stringify(visitReport(), null, 1));
   } else if (url.pathname === '/stats') {
     const st = Object.assign({ server: REGION, friendRooms: friendRooms }, getRoom(roomNumber(url.searchParams.get('room'))).stats(), { usage: usage() });
     res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*' });
@@ -57,6 +76,7 @@ server.on('upgrade', (req, socket, head) => {
       ws.close(1000, 'budget');
       return;
     }
+    recordVisit({ vid: url.searchParams.get('v'), owner: url.searchParams.get('o') === '1', played: true, ua: req.headers['user-agent'] });
     const rawSend = ws.send.bind(ws);
     ws.send = (s) => { addBytes(s.length); rawSend(s); };
     const room = getRoom(roomKey(url.searchParams.get('room')));
